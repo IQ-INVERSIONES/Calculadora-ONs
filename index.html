@@ -550,7 +550,7 @@ let selected=[];
 let sortCol='tir', sortAsc=false;
 let cfChart=null;
 let pieChart=null;
-const COLORS=['#0043aa','#61b0bc','#FFD166','#EF6461','#B07CC6','#FF8C42','#2ECC71','#E056A0','#5DADE2','#F4D03F','#A569BD','#48C9B0','#EC7063','#85C1E9'];
+const COLORS=['#0043aa','#61b0bc','#8a9e00','#3366bb','#7dc8d4','#b4bd00','#1a5cc8','#94d2db','#6d8400','#4d80d0','#a8dce3','#d4dc4a'];
 
 document.addEventListener('DOMContentLoaded',()=>{
   buildSectorFilter();
@@ -561,6 +561,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     selected.push({ticker:o.ticker,nominal:step>=1000?step:1000});
   });
   renderCatalog();
+  renderProposal();
   attachFilterListeners();
   document.querySelectorAll('.tab-btn').forEach(b=>{
     b.onclick=()=>{
@@ -765,7 +766,7 @@ function renderProposal(){
   items.forEach((it,i)=>{
     const alloc=totalImporte>0?(it.importe/totalImporte*100):0;
     const tr=document.createElement('tr');
-    if(o.recomendada) tr.className='rec-row';
+    if(it.recomendada) tr.className='rec-row';
     tr.innerHTML=`
       <td><span class="tk">${it.ticker}</span></td>
       <td>${it.emisor}</td>
@@ -946,27 +947,36 @@ function downloadPDF(){
   html+='<div style="background:#f0f8f6;padding:10px 12px;border-radius:8px;border-left:3px solid #61b0bc"><div style="font-size:8px;color:#666;text-transform:uppercase;font-weight:700">Instrumentos</div><div style="font-size:17px;font-weight:800">'+items.length+'</div></div>';
   html+='</div>';
 
-  // SVG Pie chart for PDF
+  // Professional donut chart for PDF
   const total=items.reduce((s,it)=>s+it.importe,0);
-  let cumulativeAngle=0;
+  let cumulativeAngle=-Math.PI/2; // Start from top
   let pieSlices='';
-  let pieLegend='';
+  const cx=80,cy=80,r1=65,r2=42; // Donut dimensions
   items.forEach((it,i)=>{
     const pct=it.importe/total;
     const angle=pct*Math.PI*2;
-    const x1=Math.cos(cumulativeAngle)*80+90;
-    const y1=Math.sin(cumulativeAngle)*80+90;
+    const sa=cumulativeAngle;
     cumulativeAngle+=angle;
-    const x2=Math.cos(cumulativeAngle)*80+90;
-    const y2=Math.sin(cumulativeAngle)*80+90;
-    const largeArc=angle>Math.PI?1:0;
+    const ea=cumulativeAngle;
+    const x1o=cx+Math.cos(sa)*r1, y1o=cy+Math.sin(sa)*r1;
+    const x2o=cx+Math.cos(ea)*r1, y2o=cy+Math.sin(ea)*r1;
+    const x2i=cx+Math.cos(ea)*r2, y2i=cy+Math.sin(ea)*r2;
+    const x1i=cx+Math.cos(sa)*r2, y1i=cy+Math.sin(sa)*r2;
+    const la=angle>Math.PI?1:0;
     const color=COLORS[i%COLORS.length];
-    pieSlices+='<path d="M90,90 L'+x1+','+y1+' A80,80 0 '+largeArc+',1 '+x2+','+y2+' Z" fill="'+color+'"/>';
-    pieLegend+='<div style="display:flex;align-items:center;gap:4px;margin:2px 0"><div style="width:8px;height:8px;border-radius:50%;background:'+color+'"></div><span style="font-size:8px">'+it.ticker+' '+(pct*100).toFixed(1)+'%</span></div>';
+    pieSlices+='<path d="M'+x1o+','+y1o+' A'+r1+','+r1+' 0 '+la+',1 '+x2o+','+y2o+' L'+x2i+','+y2i+' A'+r2+','+r2+' 0 '+la+',0 '+x1i+','+y1i+' Z" fill="'+color+'" stroke="#fff" stroke-width="1"/>';
   });
-  html+='<div style="display:flex;align-items:center;gap:20px;margin-bottom:16px">';
-  html+='<svg viewBox="0 0 180 180" width="140" height="140">'+pieSlices+'</svg>';
-  html+='<div>'+pieLegend+'</div></div>';
+
+  html+='<div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:8px">';
+  html+='<div style="flex-shrink:0"><svg viewBox="0 0 160 160" width="120" height="120">'+pieSlices+'<text x="80" y="76" text-anchor="middle" style="font-size:11px;fill:#94a3b8;font-weight:600">Allocation</text><text x="80" y="92" text-anchor="middle" style="font-size:8px;fill:#94a3b8">'+items.length+' instrumentos</text></svg></div>';
+  html+='<table style="border-collapse:collapse;font-size:9px;flex:1"><thead><tr><th style="text-align:left;padding:3px 6px;font-size:7.5px;text-transform:uppercase;color:#94a3b8;border-bottom:1px solid #e2e8f0">Ticker</th><th style="text-align:right;padding:3px 6px;font-size:7.5px;text-transform:uppercase;color:#94a3b8;border-bottom:1px solid #e2e8f0">Importe</th><th style="text-align:right;padding:3px 6px;font-size:7.5px;text-transform:uppercase;color:#94a3b8;border-bottom:1px solid #e2e8f0">%</th></tr></thead><tbody>';
+  items.forEach((it,i)=>{
+    const pct=(it.importe/total*100).toFixed(1);
+    const color=COLORS[i%COLORS.length];
+    html+='<tr><td style="padding:3px 6px;border-bottom:1px solid #f0f2f5"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+color+';margin-right:4px;vertical-align:middle"></span><strong>'+it.ticker+'</strong></td><td style="padding:3px 6px;text-align:right;border-bottom:1px solid #f0f2f5">USD '+fmt(it.importe)+'</td><td style="padding:3px 6px;text-align:right;border-bottom:1px solid #f0f2f5;color:#0043aa;font-weight:600">'+pct+'%</td></tr>';
+  });
+  html+='<tr><td style="padding:4px 6px;font-weight:700;border-top:1px solid #0043aa">TOTAL</td><td style="padding:4px 6px;text-align:right;font-weight:700;border-top:1px solid #0043aa">USD '+fmt(total)+'</td><td style="padding:4px 6px;text-align:right;font-weight:700;border-top:1px solid #0043aa;color:#0043aa">100%</td></tr>';
+  html+='</tbody></table></div>';
 
   // Tabla de composicion
   html+='<h3 style="font-size:12px;margin-bottom:8px;color:#1e293b">Composicion de cartera</h3>';
