@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IQ Soluciones Financieras — Calculadora de ONs</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --iq-blue: #0043aa;
+  --iq-teal: #61b0bc;
+  --iq-olive: #b4bd00;
+  --iq-red: #e74c3c;
+  --iq-green: #27ae60;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: .25s ease;
+  --font: 'Montserrat', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+[data-theme="light"] {
+  --bg: #f5f7fa;
+  --bg2: #ffffff;
+  --bg3: #f0f2f5;
+  --bg4: #e2e8f0;
+  --text: #1e293b;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --border: #e2e8f0;
+  --border2: #cbd5e1;
+  --hover: #f8fafc;
+  --input-bg: #ffffff;
+  --shadow: 0 1px 3px rgba(15,23,42,.04);
+  --shadow-lg: 0 4px 16px rgba(15,23,42,.08);
+  --accent: var(--iq-blue);
+  --accent-glow: rgba(0,67,170,.08);
+}
+[data-theme="dark"] {
+  --bg: #0a1322;
+  --bg2: #131c30;
+  --bg3: #1a2540;
+  --bg4: #243245;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #6b7d99;
+  --border: #243245;
+  --border2: #334155;
+  --hover: #182338;
+  --input-bg: #131c30;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.5);
+  --accent: var(--iq-teal);
+  --accent-glow: rgba(97,176,188,.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  font-weight: 400;
+  transition: background var(--transition), color var(--transition);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text3); border-radius: 3px; }
+
+/* HEADER */
+.header {
+  background: var(--bg2);
+  padding: 0 28px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 2px solid var(--iq-blue);
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition);
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo-svg { height: 40px; width: auto; }
+.header-title { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: -.2px; }
+.header-title b { color: var(--iq-blue); font-weight: 700; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.tab-nav { display: flex; gap: 3px; background: var(--bg3); border-radius: 8px; padding: 3px; }
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  padding: 7px 18px;
+  border-radius: 6px;
+  font: 600 12px var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--iq-blue); color: #fff; box-shadow: 0 2px 6px rgba(0,67,170,.25); }
+.theme-btn {
+  width: 34px; height: 34px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  transition: all var(--transition);
+}
+.theme-btn:hover { background: var(--bg4); }
+
+/* MAIN */
+.main { max-width: 1440px; margin: 0 auto; padding: 22px 22px 60px; }
+.screen { display: none; }
+.screen.active { display: block; animation: fadeUp .3s ease-out; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* FILTERS */
+.filters {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+}
+.fg { display: flex; flex-direction: column; gap: 3px; }
+.fg label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); }
+.fg select, .fg input[type="number"] {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font: 500 12.5px var(--font);
+  color: var(--text);
+  min-width: 120px;
+  transition: all var(--transition);
+  outline: none;
+}
+.fg input[type="number"] { width: 75px; min-width: 75px; font-family: var(--mono); }
+.fg select:focus, .fg input:focus { border-color: var(--iq-blue); box-shadow: 0 0 0 3px var(--accent-glow); }
+.sep { width: 1px; height: 32px; background: var(--border); align-self: flex-end; }
+.btn-clear {
+  background: none; border: 1px solid var(--border); color: var(--text3);
+  padding: 7px 14px; border-radius: var(--radius-sm); font: 600 12px var(--font);
+  cursor: pointer; transition: all var(--transition); white-space: nowrap;
+}
+.btn-clear:hover { border-color: var(--iq-red); color: var(--iq-red); }
+
+/* TABLE */
+.tbl-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+}
+.tbl-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--bg3);
+  padding: 11px 13px;
+  text-align: left;
+  font: 700 10px var(--font);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition);
+  position: sticky; top: 0;
+}
+thead th:hover { color: var(--iq-blue); }
+thead th.sorted { color: var(--iq-blue); }
+.sort-i { font-size: 9px; margin-left: 3px; opacity: .5; }
+thead th.sorted .sort-i { opacity: 1; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--hover); }
+td { padding: 10px 13px; white-space: nowrap; font-size: 13px; }
+.tk { font: 600 13px var(--mono); color: var(--iq-blue); }
+.badge-iq {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  padding: 2px 9px; border-radius: 20px;
+  font: 700 10px var(--font);
+  letter-spacing: .3px;
+}
+.badge-iq::before { content: '\2605'; font-size: 9px; }
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 5px;
+  font: 600 11px var(--mono); letter-spacing: .3px;
+}
+.pill-aaa { background: rgba(39,174,96,.1); color: #27ae60; }
+.pill-aap { background: rgba(0,67,170,.08); color: #0043aa; }
+.pill-aa { background: rgba(180,189,0,.12); color: #8a9000; }
+.pill-a { background: rgba(231,76,60,.1); color: #e74c3c; }
+.pill-b { background: rgba(155,89,182,.1); color: #9b59b6; }
+.pill-ny { background: rgba(0,67,170,.07); color: #0043aa; }
+.pill-arg { background: rgba(97,176,188,.1); color: #3d8b97; }
+.btn-add {
+  background: var(--iq-blue); color: #fff; border: none;
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  font: 700 11px var(--font); cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-add:hover { opacity: .85; transform: translateY(-1px); }
+.btn-add.added { background: var(--bg3); color: var(--text3); cursor: default; pointer-events: none; }
+.tbl-foot {
+  padding: 10px 18px; display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text3); border-top: 1px solid var(--border);
+}
+
+/* SCREEN 2 */
+.grid2 { display: grid; grid-template-columns: 1fr 320px; gap: 18px; }
+@media (max-width: 1080px) { .grid2 { grid-template-columns: 1fr; } }
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+}
+.card-h {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-t { font: 700 14px var(--font); letter-spacing: -.2px; }
+.card-b { padding: 18px; }
+.sel-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sel-tbl th { text-align: left; padding: 7px 10px; font: 700 10px var(--font); text-transform: uppercase; letter-spacing: .5px; color: var(--text3); border-bottom: 1px solid var(--border); }
+.sel-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.sel-tbl tr:last-child td { border-bottom: none; }
+.nom-input {
+  width: 95px; background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 5px 8px;
+  font: 500 12.5px var(--mono); color: var(--text); text-align: right;
+  outline: none; transition: all var(--transition);
+}
+.nom-input:focus { border-color: var(--iq-blue); box-shadow: 0 0 0 3px var(--accent-glow); }
+.btn-rm { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; transition: color var(--transition); padding: 2px 6px; }
+.btn-rm:hover { color: var(--iq-red); }
+
+/* Summary */
+.summary { position: sticky; top: 80px; }
+.stat { display: flex; justify-content: space-between; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.stat:last-of-type { border-bottom: none; }
+.stat-l { font-size: 12.5px; color: var(--text2); font-weight: 500; }
+.stat-v { font: 700 17px var(--mono); color: var(--text); letter-spacing: -.5px; }
+.stat-v.hl { color: var(--iq-blue); }
+.stat-v.big { font-size: 22px; }
+.btn-primary {
+  width: 100%; background: var(--iq-blue);
+  color: #fff; border: none; padding: 13px;
+  border-radius: var(--radius-sm);
+  font: 700 13.5px var(--font); cursor: pointer;
+  transition: all var(--transition); margin-top: 14px;
+  box-shadow: 0 2px 8px rgba(0,67,170,.2);
+}
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,67,170,.3); }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-sec {
+  width: 100%; background: none; border: 1px solid var(--border);
+  color: var(--text2); padding: 11px;
+  border-radius: var(--radius-sm);
+  font: 600 12.5px var(--font); cursor: pointer;
+  transition: all var(--transition); margin-top: 8px;
+}
+.btn-sec:hover { border-color: var(--iq-blue); color: var(--iq-blue); }
+
+/* CF table */
+.cf-tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.cf-tbl th { text-align: right; padding: 7px 9px; font: 700 9.5px var(--font); text-transform: uppercase; letter-spacing: .5px; color: var(--text3); border-bottom: 1px solid var(--border); }
+.cf-tbl th:first-child { text-align: left; }
+.cf-tbl td { padding: 6px 9px; text-align: right; font-family: var(--mono); font-size: 11.5px; border-bottom: 1px solid var(--border); }
+.cf-tbl td:first-child { text-align: left; font-family: var(--font); font-weight: 600; }
+.cf-tbl .cf-total td { font-weight: 700; color: var(--iq-blue); border-top: 2px solid var(--iq-blue); border-bottom: none; }
+
+.chart-box { position: relative; height: 300px; margin-top: 18px; }
+
+.empty { text-align: center; padding: 50px 20px; color: var(--text3); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; opacity: .3; }
+.empty-txt { font: 600 14px var(--font); }
+.empty-sub { font-size: 12px; margin-top: 4px; }
+
+.alloc-bar { height: 7px; background: var(--bg3); border-radius: 4px; overflow: hidden; display: flex; margin: 14px 0 6px; }
+.alloc-seg { height: 100%; transition: width .3s; }
+.alloc-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.alloc-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text2); }
+.alloc-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+.pdf-content { display: none; }
+
+@media (max-width: 768px) {
+  .header { padding: 0 12px; }
+  .header-title { font-size: 12px; }
+  .tab-btn { padding: 6px 12px; font-size: 11px; }
+  .main { padding: 14px 10px 40px; }
+  .filters { padding: 10px; gap: 6px; }
+  .fg select, .fg input { min-width: 90px; font-size: 11px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .summary { position: static; }
+  .logo-svg { height: 32px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 691.72 371.42"><defs><style>.cls-1{fill:#0043aa;}.cls-2{fill:#b4bd00;}.cls-3{fill:#61b0bc;}</style></defs><g id="Capa_2" data-name="Capa 2"><g id="Capa_1-2" data-name="Capa 1"><path class="cls-1" d="M660.19,237.61q31.48-36.5,31.53-86.3,0-55.54-38.41-94.18T561.38,18.5a128.16,128.16,0,0,0-65.6,17.77,130,130,0,0,0-48,47.94q-17.46,30.18-17.45,66.24,0,54,37.49,93.09t94.13,39q32.13,0,58.57-13.58l5.21,6.77A8.27,8.27,0,0,0,632.3,279h43.76a8.26,8.26,0,0,0,6.54-13.3Zm-98.42-1.34a82.44,82.44,0,0,1-53.25-19q-30-24.27-30-66,0-37.44,23.78-61.7t59-24.28q34.22,0,58.34,25T643.85,151a87.24,87.24,0,0,1-14.11,48.22l-9-13.74a8.26,8.26,0,0,0-6.54-3.21H570.47a8.26,8.26,0,0,0-6.54,13.31l27.14,35.23A78.55,78.55,0,0,1,561.77,236.27Z"/><path class="cls-1" d="M375.5,25.11H407a7.49,7.49,0,0,1,8,7.46V268.23s0,8.33-8.45,8.33H375.79c-8.06,0-8.3-7.7-8.3-7.7V32.59S366.61,25.11,375.5,25.11Z"/><path class="cls-1" d="M271.57,279.27H225.31a8.69,8.69,0,0,1-6.91-3.41l-13.66-17.71H111.46A8.72,8.72,0,0,1,104,245L170.4,133.06a8.74,8.74,0,0,1,7.51-4.27H301.59a8.72,8.72,0,0,1,7.6,13L256,236.1l22.46,29.1a8.74,8.74,0,0,1-6.92,14.07Z"/><path class="cls-2" d="M83,242.38a8.71,8.71,0,0,1-6.91-3.4L3.75,145.51a8.73,8.73,0,0,1-.7-9.64L67.43,22.1a8.74,8.74,0,0,1,14.51-1l74.39,96.18a8.74,8.74,0,0,1,.58,9.84l-66.46,111a8.73,8.73,0,0,1-7,4.23Z"/><path class="cls-3" d="M300.62,114.14H176.94a8.73,8.73,0,0,1-6.91-3.4L95.39,14.06A8.73,8.73,0,0,1,102.3,0H225.87a8.75,8.75,0,0,1,6.91,3.39l74.75,96.67a8.74,8.74,0,0,1-6.91,14.08Z"/></g></g></svg>
+    <div class="header-title"><b>Calculadora de ONs</b></div>
+  </div>
+  <div class="header-right">
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-screen="catalog">Catalogo</button>
+      <button class="tab-btn" data-screen="proposal">Armador</button>
+    </nav>
+    <button class="theme-btn" onclick="toggleTheme()" title="Tema claro/oscuro">&#9789;</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="screen active" id="screen-catalog">
+    <div class="filters">
+      <div class="fg"><label>Sector</label><select id="fSec"><option value="">Todos</option></select></div>
+      <div class="fg"><label>Ley</label><select id="fLey"><option value="">Todas</option><option value="NY">New York</option><option value="Arg">Argentina</option></select></div>
+      <div class="fg"><label>Calificacion</label><select id="fCal"><option value="">Todas</option><option>AAA</option><option>AA+</option><option>AA</option><option>A</option><option>B</option></select></div>
+      <div class="sep"></div>
+      <div class="fg"><label>TIR min %</label><input type="number" id="fTirMin" step="0.1" placeholder="--"></div>
+      <div class="fg"><label>TIR max %</label><input type="number" id="fTirMax" step="0.1" placeholder="--"></div>
+      <div class="sep"></div>
+      <div class="fg"><label>Dur. min</label><input type="number" id="fDurMin" step="0.1" placeholder="--"></div>
+      <div class="fg"><label>Dur. max</label><input type="number" id="fDurMax" step="0.1" placeholder="--"></div>
+      <div class="sep"></div>
+      <div class="fg"><label>Tipo</label><select id="fTipo"><option value="">Todos</option><option value="ON">ON</option><option value="Bopreal">Bopreal</option><option value="Bono Soberano">Bono Soberano</option><option value="Bono Provincial">Bono Provincial</option></select></div>
+      <button class="btn-clear" onclick="clearFilters()">Limpiar</button>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr id="thead-row"></tr></thead>
+          <tbody id="catalog-body"></tbody>
+        </table>
+      </div>
+      <div class="tbl-foot">
+        <span id="tbl-count"></span>
+        <span>Precios al cierre</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-proposal">
+    <div class="grid2">
+      <div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-h">
+            <span class="card-t">ONs seleccionadas</span>
+            <span id="sel-count" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <div class="card-b" style="padding:0;overflow-x:auto">
+            <div id="sel-empty" class="empty">
+              <div class="empty-icon">&#128202;</div>
+              <div class="empty-txt">Sin ONs seleccionadas</div>
+              <div class="empty-sub">Agrega ONs desde el Catalogo para armar la propuesta</div>
+            </div>
+            <table class="sel-tbl" id="sel-table" style="display:none">
+              <thead><tr>
+                <th>Ticker</th><th>Emisor</th><th>Sector</th><th>TIR %</th><th>Dur.</th><th>Precio</th>
+                <th>Nominales (USD)</th><th>Importe</th><th>Alloc %</th><th></th>
+              </tr></thead>
+              <tbody id="sel-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px" id="alloc-card">
+          <div class="card-h"><span class="card-t">Distribucion (Allocation)</span></div>
+          <div class="card-b">
+            <div class="alloc-bar" id="alloc-bar"></div>
+            <div class="alloc-legend" id="alloc-legend"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px" id="cf-card">
+          <div class="card-h"><span class="card-t">Flujo de Fondos Anual (Cupones + Amortizacion)</span></div>
+          <div class="card-b" style="padding:0;overflow-x:auto">
+            <table class="cf-tbl" id="cf-table">
+              <thead><tr><th>Ano</th><th>Cupones</th><th>Amortizacion</th><th>Retorno Total</th><th>Acumulado</th></tr></thead>
+              <tbody id="cf-body"></tbody>
+            </table>
+          </div>
+          <div class="chart-box"><canvas id="cfChart"></canvas></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card summary">
+          <div class="card-h"><span class="card-t">Resumen de Cartera</span></div>
+          <div class="card-b">
+            <div class="stat"><span class="stat-l">Inversion total</span><span class="stat-v big hl" id="s-total">--</span></div>
+            <div class="stat"><span class="stat-l">TIR ponderada</span><span class="stat-v" id="s-tir">--</span></div>
+            <div class="stat"><span class="stat-l">M.Duration prom.</span><span class="stat-v" id="s-dur">--</span></div>
+            <div class="stat"><span class="stat-l">Cantidad de ONs</span><span class="stat-v" id="s-qty">0</span></div>
+            <div class="stat"><span class="stat-l">Retorno total est.</span><span class="stat-v hl" id="s-ret">--</span></div>
+            <button class="btn-primary" id="btn-pdf" disabled onclick="downloadPDF()">Descargar Propuesta PDF</button>
+            <button class="btn-sec" onclick="clearProposal()">Limpiar propuesta</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pdf-content" id="pdf-content"></div>
+
+<script>
+const ONS_DATA=[
+{ticker:"MGCRO",emisor:"Pampa",sector:"Oil & Gas",vencimiento:"2037-11-14",precio:105.7,tir:7.16,mduration:9,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.078,amortSchedule:[{year:2037,pct:1}],cuponMeses:[5,11]},
+{ticker:"MGCJO",emisor:"Pampa",sector:"Oil & Gas",vencimiento:"2025-09-08",precio:101.05,tir:7.0,mduration:0.25,calificacion:"AA+",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2025,pct:1}],cuponMeses:[9]},
+{ticker:"LOC2O",emisor:"Loma Negra",sector:"Construccion",vencimiento:"2025-12-21",precio:105,tir:3.0,mduration:0.35,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2025,pct:1}],cuponMeses:[6,12]},
+{ticker:"YMCHO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2026-02-12",precio:48,tir:3.0,mduration:0.4,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.034,amortSchedule:[{year:2026,pct:1}],cuponMeses:[2,8]},
+{ticker:"YMCQO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2026-02-13",precio:101,tir:null,mduration:1,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2026,pct:1}],cuponMeses:[2,8]},
+{ticker:"CS38O",emisor:"Cresud",sector:"Real Estate",vencimiento:"2026-03-03",precio:105.25,tir:5.0,mduration:1,calificacion:"AA+",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.079,amortSchedule:[{year:2026,pct:1}],cuponMeses:[3,9]},
+{ticker:"YMCVO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2026-05-28",precio:101.1,tir:6.59,mduration:0.08,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.03,amortSchedule:[{year:2026,pct:1}],cuponMeses:[5,11]},
+{ticker:"BPY26",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2026-05-31",precio:100.85,tir:null,mduration:null,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.03,amortSchedule:[{year:2025,pct:0.33},{year:2025,pct:0.33},{year:2026,pct:0.34}],cuponMeses:[2,5,8,11]},
+{ticker:"MTCGO",emisor:"Mastellone",sector:"Alimentos",vencimiento:"2026-06-30",precio:110.25,tir:null,mduration:0.07,calificacion:"A",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.055,amortSchedule:[{year:2026,pct:1}],cuponMeses:[6,12]},
+{ticker:"TLC1O",emisor:"Telecom",sector:"Telecom",vencimiento:"2026-07-20",precio:103.8,tir:1.18,mduration:0.07,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.08,amortSchedule:[{year:2026,pct:1}],cuponMeses:[1,7]},
+{ticker:"YFC2O",emisor:"YPF Luz",sector:"Electricidad",vencimiento:"2026-07-27",precio:106.3,tir:-6.48,mduration:0.09,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.1,amortSchedule:[{year:2026,pct:1}],cuponMeses:[1,7]},
+{ticker:"BACAO",emisor:"Banco Macro",sector:"Bancario",vencimiento:"2026-11-04",precio:103.6,tir:6.18,mduration:0.32,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.066,amortSchedule:[{year:2026,pct:1}],cuponMeses:[5,11]},
+{ticker:"DNC3O",emisor:"Edenor",sector:"Electricidad",vencimiento:"2026-11-22",precio:103.2,tir:13.4,mduration:0.29,calificacion:"A",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.097,amortSchedule:[{year:2026,pct:1}],cuponMeses:[5,11]},
+{ticker:"CS44O",emisor:"Cresud",sector:"Real Estate",vencimiento:"2027-01-17",precio:99.8,tir:9.7,mduration:0.52,calificacion:"AA+",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.06,amortSchedule:[{year:2027,pct:1}],cuponMeses:[1,7]},
+{ticker:"LMS8O",emisor:"Aluar",sector:"Materiales",vencimiento:"2027-03-21",precio:101.85,tir:4.61,mduration:0.37,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.032,amortSchedule:[{year:2027,pct:1}],cuponMeses:[3,6,9,12]},
+{ticker:"PNDCO",emisor:"PAE",sector:"Oil & Gas",vencimiento:"2027-04-30",precio:110,tir:2.0,mduration:0.17,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.055,amortSchedule:[{year:2027,pct:1}],cuponMeses:[4,10]},
+{ticker:"GNCXO",emisor:"Genneia",sector:"Electricidad",vencimiento:"2027-09-02",precio:63.38,tir:6.31,mduration:0.06,calificacion:"AA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.062,amortSchedule:[{year:2026,pct:0.3},{year:2027,pct:0.7}],cuponMeses:[3,9]},
+{ticker:"RCCJO",emisor:"Arcor",sector:"Alimentos",vencimiento:"2027-10-11",precio:108.5,tir:4.96,mduration:0.24,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.047,amortSchedule:[{year:2027,pct:1}],cuponMeses:[4,10]},
+{ticker:"BPOA7",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2027-10-31",precio:98.95,tir:6.23,mduration:0.98,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2027,pct:0.5},{year:2027,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"BPOB7",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2027-10-31",precio:93.18,tir:11.82,mduration:0.96,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2027,pct:0.5},{year:2027,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"BPOC7",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2027-10-31",precio:96.43,tir:8.59,mduration:0.99,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2027,pct:0.5},{year:2027,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"BPOD7",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2027-10-31",precio:96.1,tir:8.91,mduration:0.99,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2027,pct:0.5},{year:2027,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"MRCAO",emisor:"GEMSA - CTR",sector:"Electricidad",vencimiento:"2027-12-01",precio:72.28,tir:null,mduration:0.03,calificacion:"AA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.044,amortSchedule:[{year:2026,pct:0.3},{year:2027,pct:0.7}],cuponMeses:[6,12]},
+{ticker:"PLC5O",emisor:"Pluspetrol",sector:"Oil & Gas",vencimiento:"2031-05-18",precio:104.95,tir:7.05,mduration:4.07,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.081,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[5,11]},
+{ticker:"LMS7O",emisor:"Aluar",sector:"Materiales",vencimiento:"2028-10-12",precio:104,tir:-9.61,mduration:1.32,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.032,amortSchedule:[{year:2026,pct:0.17},{year:2027,pct:0.33},{year:2028,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"TSC4O",emisor:"TGS",sector:"Oil & Gas",vencimiento:"2035-11-20",precio:111.2,tir:6.81,mduration:6.5,calificacion:"B",ley:"NY",tipo:"ON",nomMin:1,recomendada:true,cuponAnual:0.078,amortSchedule:[{year:2033,pct:0.2},{year:2034,pct:0.4},{year:2035,pct:0.4}],cuponMeses:[5,11]},
+{ticker:"YMCIO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2029-07-02",precio:109,tir:5.4,mduration:1.29,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.09,amortSchedule:[{year:2026,pct:0.143},{year:2027,pct:0.286},{year:2028,pct:0.286},{year:2029,pct:0.286}],cuponMeses:[1,7]},
+{ticker:"TSC3O",emisor:"TGS",sector:"Oil & Gas",vencimiento:"2031-07-24",precio:108,tir:7.38,mduration:3.87,calificacion:"B",ley:"NY",tipo:"ON",nomMin:1000,recomendada:false,cuponAnual:0.085,amortSchedule:[{year:2029,pct:0.2},{year:2030,pct:0.4},{year:2031,pct:0.4}],cuponMeses:[1,7]},
+{ticker:"ARC1O",emisor:"AA2000",sector:"Infraestructura",vencimiento:"2031-08-01",precio:107.15,tir:5.66,mduration:2.55,calificacion:"AA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.043,amortSchedule:[{year:2027,pct:0.024},{year:2028,pct:0.075},{year:2029,pct:0.1},{year:2030,pct:0.15},{year:2031,pct:0.65}],cuponMeses:[2,5,8,11]},
+{ticker:"PNXCO",emisor:"PAE",sector:"Oil & Gas",vencimiento:"2032-04-30",precio:107.9,tir:6.79,mduration:3.87,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.085,amortSchedule:[{year:2030,pct:0.33},{year:2031,pct:0.33},{year:2032,pct:0.34}],cuponMeses:[4,10]},
+{ticker:"YMCJO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2033-09-30",precio:99.69,tir:7.39,mduration:4.48,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.07,amortSchedule:[{year:2031,pct:0.33},{year:2032,pct:0.33},{year:2033,pct:0.34}],cuponMeses:[3,9]},
+{ticker:"GD30",emisor:"Sector Publico",sector:"Sector Publico",vencimiento:"2030-07-10",precio:63.74,tir:7.59,mduration:5,calificacion:"",ley:"NY",tipo:"Bono Soberano",nomMin:1,recomendada:false,cuponAnual:0.005,amortSchedule:[{year:2025,pct:0.08},{year:2026,pct:0.08},{year:2027,pct:0.08},{year:2028,pct:0.08},{year:2029,pct:0.08},{year:2030,pct:0.6}],cuponMeses:[1,7]},
+{ticker:"GD35",emisor:"Sector Publico",sector:"Sector Publico",vencimiento:"2035-07-10",precio:63.06,tir:14.08,mduration:4.6,calificacion:"",ley:"NY",tipo:"Bono Soberano",nomMin:1,recomendada:false,cuponAnual:0.041,amortSchedule:[{year:2029,pct:0.04},{year:2030,pct:0.08},{year:2031,pct:0.08},{year:2032,pct:0.08},{year:2033,pct:0.08},{year:2034,pct:0.08},{year:2035,pct:0.56}],cuponMeses:[1,7]},
+{ticker:"AE38",emisor:"Sector Publico",sector:"Sector Publico",vencimiento:"2038-01-11",precio:51.39,tir:20.54,mduration:3.3,calificacion:"",ley:"Arg",tipo:"Bono Soberano",nomMin:1,recomendada:false,cuponAnual:0.05,amortSchedule:[{year:2027,pct:0.05},{year:2028,pct:0.1},{year:2029,pct:0.1},{year:2030,pct:0.1},{year:2031,pct:0.1},{year:2032,pct:0.1},{year:2033,pct:0.1},{year:2034,pct:0.1},{year:2035,pct:0.1},{year:2036,pct:0.05},{year:2037,pct:0.05},{year:2038,pct:0.05}],cuponMeses:[1,7]},
+{ticker:"YMCXO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2031-10-04",precio:111.15,tir:6.47,mduration:3.7,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.088,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[4,10]},
+{ticker:"TLCMO",emisor:"Telecom",sector:"Telecom",vencimiento:"2031-07-18",precio:109.4,tir:7.86,mduration:3.08,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1000,recomendada:false,cuponAnual:0.095,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[1,7]},
+{ticker:"NPCAO",emisor:"Central Puerto",sector:"Electricidad",vencimiento:"2026-03-14",precio:101,tir:null,mduration:1.33,calificacion:"",ley:"",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.069,amortSchedule:[{year:2026,pct:1}],cuponMeses:[3,9]},
+{ticker:"YFCGO",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2027-02-27",precio:99.5,tir:8.71,mduration:4.48,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.03,amortSchedule:[{year:2027,pct:1}],cuponMeses:[2,8]},
+{ticker:"NDT25",emisor:"Neuquen",sector:"Sector Publico",vencimiento:"2030-04-27",precio:100,tir:7.0,mduration:null,calificacion:"",ley:"NY",tipo:"Bono Provincial",nomMin:1,recomendada:false,cuponAnual:0.048,amortSchedule:[{year:2028,pct:0.25},{year:2029,pct:0.25},{year:2030,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"CO27D",emisor:"Cordoba",sector:"Sector Publico",vencimiento:"2027-08-02",precio:105.45,tir:5.07,mduration:1.02,calificacion:"AA",ley:"NY",tipo:"Bono Provincial",nomMin:1,recomendada:false,cuponAnual:0.069,amortSchedule:[{year:2027,pct:1}],cuponMeses:[2,8]},
+{ticker:"MGCMO",emisor:"Pampa",sector:"Oil & Gas",vencimiento:"2031-09-10",precio:109.5,tir:6.26,mduration:4.12,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1000,recomendada:false,cuponAnual:0.08,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[3,9]},
+{ticker:"VSCRO",emisor:"Vista",sector:"Oil & Gas",vencimiento:"2031-10-10",precio:100.4,tir:7.91,mduration:3.53,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.076,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[4,10]},
+{ticker:"YFCJO",emisor:"YPF Luz",sector:"Electricidad",vencimiento:"2032-10-16",precio:107.2,tir:6.53,mduration:4.21,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.079,amortSchedule:[{year:2030,pct:0.33},{year:2031,pct:0.33},{year:2032,pct:0.34}],cuponMeses:[4,10]},
+{ticker:"PN36O",emisor:"PAE",sector:"Oil & Gas",vencimiento:"2031-11-13",precio:101,tir:7.18,mduration:4.3,calificacion:"",ley:"",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.072,amortSchedule:[{year:2029,pct:0.33},{year:2030,pct:0.33},{year:2031,pct:0.34}],cuponMeses:[5,11]},
+{ticker:"VSCTO",emisor:"Vista",sector:"Oil & Gas",vencimiento:"2035-12-10",precio:105.65,tir:7.38,mduration:5.74,calificacion:"",ley:"",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.076,amortSchedule:[{year:2033,pct:0.2},{year:2034,pct:0.4},{year:2035,pct:0.4}],cuponMeses:[6,12]},
+{ticker:"MGCOO",emisor:"Pampa",sector:"Oil & Gas",vencimiento:"2034-12-16",precio:111.3,tir:6.75,mduration:2.7,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.079,amortSchedule:[{year:2032,pct:0.2},{year:2033,pct:0.4},{year:2034,pct:0.4}],cuponMeses:[6,12]},
+{ticker:"ZZC1O",emisor:"Camuzzi Gas Pampeana",sector:"Oil & Gas",vencimiento:"2027-02-21",precio:100,tir:10.85,mduration:null,calificacion:"",ley:"",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.08,amortSchedule:[{year:2027,pct:1}],cuponMeses:[2,8]},
+{ticker:"MCC1O",emisor:"PECOM",sector:"Oil & Gas",vencimiento:"2029-02-21",precio:103.1,tir:7.11,mduration:3,calificacion:"",ley:"",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.076,amortSchedule:[{year:2027,pct:0.33},{year:2028,pct:0.33},{year:2029,pct:0.34}],cuponMeses:[2,8]},
+{ticker:"YM34O",emisor:"YPF",sector:"Oil & Gas",vencimiento:"2034-01-17",precio:111.2,tir:6.79,mduration:5.1,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:true,cuponAnual:0.083,amortSchedule:[{year:2031,pct:0.2},{year:2032,pct:0.4},{year:2033,pct:0.2},{year:2034,pct:0.2}],cuponMeses:[1,7]},
+{ticker:"TLCPO",emisor:"Telecom",sector:"Telecom",vencimiento:"2033-05-28",precio:115.4,tir:7.24,mduration:4.8,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1,recomendada:true,cuponAnual:0.093,amortSchedule:[{year:2031,pct:0.33},{year:2032,pct:0.33},{year:2033,pct:0.34}],cuponMeses:[5,11]},
+{ticker:"VSCVO",emisor:"Vista",sector:"Oil & Gas",vencimiento:"2033-06-10",precio:114.3,tir:6.47,mduration:4.7,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:true,cuponAnual:0.085,amortSchedule:[{year:2031,pct:0.33},{year:2032,pct:0.33},{year:2033,pct:0.34}],cuponMeses:[6,12]},
+{ticker:"TTCAO",emisor:"Tecpetrol",sector:"Oil & Gas",vencimiento:"2033-01-22",precio:105.4,tir:7.09,mduration:5.5,calificacion:"AAA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.076,amortSchedule:[{year:2031,pct:0.33},{year:2032,pct:0.33},{year:2033,pct:0.34}],cuponMeses:[1,7]},
+{ticker:"IRCPO",emisor:"IRSA",sector:"Real Estate",vencimiento:"2035-03-31",precio:108.2,tir:6.92,mduration:7.3,calificacion:"AA",ley:"NY",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.08,amortSchedule:[{year:2033,pct:0.2},{year:2034,pct:0.4},{year:2035,pct:0.4}],cuponMeses:[3,9]},
+{ticker:"PLC4O",emisor:"Pluspetrol",sector:"Oil & Gas",vencimiento:"2032-05-30",precio:113.7,tir:6.63,mduration:6,calificacion:"AA+",ley:"NY",tipo:"ON",nomMin:1,recomendada:true,cuponAnual:0.085,amortSchedule:[{year:2030,pct:0.33},{year:2031,pct:0.33},{year:2032,pct:0.34}],cuponMeses:[5,11]},
+{ticker:"BPOA8",emisor:"BCRA",sector:"Sector Publico",vencimiento:"2028-10-31",precio:90.06,tir:7.72,mduration:0.98,calificacion:"",ley:"",tipo:"Bopreal",nomMin:1,recomendada:false,cuponAnual:0.03,amortSchedule:[{year:2027,pct:0.5},{year:2028,pct:0.5}],cuponMeses:[4,10]},
+{ticker:"MGC9O",emisor:"Pampa",sector:"Oil & Gas",vencimiento:"2026-12-08",precio:71.3,tir:null,mduration:2.7,calificacion:"AAA",ley:"Arg",tipo:"ON",nomMin:1,recomendada:false,cuponAnual:0.032,amortSchedule:[{year:2026,pct:1}],cuponMeses:[6,12]}
+];
+
+let selected=[];
+let sortCol='tir', sortAsc=false;
+let cfChart=null;
+const COLORS=['#0043aa','#61b0bc','#FFD166','#EF6461','#B07CC6','#FF8C42','#2ECC71','#E056A0','#5DADE2','#F4D03F','#A569BD','#48C9B0','#EC7063','#85C1E9'];
+
+document.addEventListener('DOMContentLoaded',()=>{
+  buildSectorFilter();
+  buildTableHeader();
+  renderCatalog();
+  attachFilterListeners();
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.onclick=()=>{
+      const sc=b.dataset.screen;
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+      document.getElementById('screen-'+sc).classList.add('active');
+      document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      if(sc==='proposal') renderProposal();
+    };
+  });
+});
+
+function buildSectorFilter(){
+  const sectors=[...new Set(ONS_DATA.map(o=>o.sector))].sort();
+  const sel=document.getElementById('fSec');
+  sectors.forEach(s=>{const opt=document.createElement('option');opt.value=s;opt.textContent=s;sel.appendChild(opt);});
+}
+
+const COLS=[
+  {key:'ticker',label:'Ticker'},{key:'emisor',label:'Emisor'},{key:'sector',label:'Sector'},
+  {key:'tipo',label:'Tipo'},{key:'vencimiento',label:'Vencimiento'},{key:'precio',label:'Precio'},
+  {key:'tir',label:'TIR %'},{key:'mduration',label:'M.Dur.'},{key:'calificacion',label:'Calif.'},
+  {key:'ley',label:'Ley'},{key:'_action',label:''}
+];
+
+function buildTableHeader(){
+  const tr=document.getElementById('thead-row');
+  COLS.forEach(c=>{
+    const th=document.createElement('th');
+    if(c.key==='_action'){th.textContent='';}
+    else{
+      th.dataset.sort=c.key;
+      th.innerHTML=c.label+' <span class="sort-i">&#9660;</span>';
+      th.onclick=()=>toggleSort(c.key,th);
+      if(c.key===sortCol) th.classList.add('sorted');
+    }
+    tr.appendChild(th);
+  });
+}
+
+function toggleSort(col,thEl){
+  if(sortCol===col) sortAsc=!sortAsc;
+  else{sortCol=col;sortAsc=true;}
+  document.querySelectorAll('#thead-row th').forEach(t=>t.classList.remove('sorted'));
+  thEl.classList.add('sorted');
+  thEl.querySelector('.sort-i').innerHTML=sortAsc?'&#9650;':'&#9660;';
+  renderCatalog();
+}
+
+function getFiltered(){
+  let data=[...ONS_DATA];
+  const sec=document.getElementById('fSec').value;
+  const ley=document.getElementById('fLey').value;
+  const cal=document.getElementById('fCal').value;
+  const tipo=document.getElementById('fTipo').value;
+  const tirMin=parseFloat(document.getElementById('fTirMin').value);
+  const tirMax=parseFloat(document.getElementById('fTirMax').value);
+  const durMin=parseFloat(document.getElementById('fDurMin').value);
+  const durMax=parseFloat(document.getElementById('fDurMax').value);
+  if(sec) data=data.filter(o=>o.sector===sec);
+  if(ley) data=data.filter(o=>o.ley===ley);
+  if(cal) data=data.filter(o=>o.calificacion===cal);
+  if(tipo) data=data.filter(o=>o.tipo===tipo);
+  if(!isNaN(tirMin)) data=data.filter(o=>o.tir!==null&&o.tir>=tirMin);
+  if(!isNaN(tirMax)) data=data.filter(o=>o.tir!==null&&o.tir<=tirMax);
+  if(!isNaN(durMin)) data=data.filter(o=>o.mduration!==null&&o.mduration>=durMin);
+  if(!isNaN(durMax)) data=data.filter(o=>o.mduration!==null&&o.mduration<=durMax);
+  data.sort((a,b)=>{
+    let va=a[sortCol],vb=b[sortCol];
+    if(va==null&&vb==null) return 0;
+    if(va==null) return 1; if(vb==null) return -1;
+    if(typeof va==='string') return sortAsc?va.localeCompare(vb):vb.localeCompare(va);
+    return sortAsc?va-vb:vb-va;
+  });
+  data.sort((a,b)=>(b.recomendada?1:0)-(a.recomendada?1:0));
+  return data;
+}
+
+function renderCatalog(){
+  const data=getFiltered();
+  const tbody=document.getElementById('catalog-body');
+  tbody.innerHTML='';
+  data.forEach(o=>{
+    const isAdded=selected.some(s=>s.ticker===o.ticker);
+    const calCl=o.calificacion==='AAA'?'pill-aaa':o.calificacion==='AA+'?'pill-aap':o.calificacion==='AA'?'pill-aa':o.calificacion==='A'?'pill-a':o.calificacion==='B'?'pill-b':'';
+    const leyCl=o.ley==='NY'?'pill-ny':o.ley==='Arg'?'pill-arg':'';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="tk">${o.ticker}</span>${o.recomendada?' <span class="badge-iq">IQ</span>':''}</td>
+      <td>${o.emisor}</td>
+      <td style="font-size:12px">${o.sector}</td>
+      <td style="font-size:11.5px;color:var(--text2)">${o.tipo}</td>
+      <td style="font-family:var(--mono);font-size:12px">${o.vencimiento}</td>
+      <td style="font-family:var(--mono)">${o.precio!=null?o.precio.toFixed(2):'--'}</td>
+      <td style="font-family:var(--mono);font-weight:600;color:${o.tir!=null&&o.tir>0?'var(--iq-green)':o.tir!=null&&o.tir<0?'var(--iq-red)':'var(--text3)'}">${o.tir!=null?o.tir.toFixed(2)+'%':'--'}</td>
+      <td style="font-family:var(--mono)">${o.mduration!=null?o.mduration.toFixed(2):'--'}</td>
+      <td>${o.calificacion?'<span class="pill '+calCl+'">'+o.calificacion+'</span>':'<span style="color:var(--text3)">--</span>'}</td>
+      <td>${o.ley?'<span class="pill '+leyCl+'">'+o.ley+'</span>':'<span style="color:var(--text3)">--</span>'}</td>
+      <td><button class="btn-add${isAdded?' added':''}" onclick="addON('${o.ticker}')">${isAdded?'Agregada':'+ Agregar'}</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('tbl-count').textContent=data.length+' instrumentos';
+}
+
+function attachFilterListeners(){
+  ['fSec','fLey','fCal','fTipo','fTirMin','fTirMax','fDurMin','fDurMax'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',renderCatalog);
+  });
+}
+
+function clearFilters(){
+  ['fSec','fLey','fCal','fTipo'].forEach(id=>document.getElementById(id).value='');
+  ['fTirMin','fTirMax','fDurMin','fDurMax'].forEach(id=>document.getElementById(id).value='');
+  renderCatalog();
+}
+
+function toggleTheme(){
+  const h=document.documentElement;
+  h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';
+  if(cfChart) updateChart();
+}
+
+function addON(ticker){
+  if(selected.some(s=>s.ticker===ticker)) return;
+  const on=ONS_DATA.find(o=>o.ticker===ticker);
+  selected.push({ticker,nominal:on.nomMin>=1000?on.nomMin:1000});
+  renderCatalog();
+  renderProposal();
+}
+function removeON(ticker){
+  selected=selected.filter(s=>s.ticker!==ticker);
+  renderCatalog();
+  renderProposal();
+}
+function updateNominal(ticker,val){
+  const item=selected.find(s=>s.ticker===ticker);
+  if(item) item.nominal=parseFloat(val)||0;
+  renderProposal();
+}
+function clearProposal(){
+  selected=[];
+  renderCatalog();
+  renderProposal();
+}
+
+function renderProposal(){
+  const hasItems=selected.length>0;
+  document.getElementById('sel-empty').style.display=hasItems?'none':'';
+  document.getElementById('sel-table').style.display=hasItems?'':'none';
+  document.getElementById('alloc-card').style.display=hasItems?'':'none';
+  document.getElementById('cf-card').style.display=hasItems?'':'none';
+  document.getElementById('btn-pdf').disabled=!hasItems;
+  if(!hasItems){
+    ['s-total','s-tir','s-dur','s-ret'].forEach(id=>document.getElementById(id).textContent='--');
+    document.getElementById('s-qty').textContent='0';
+    return;
+  }
+  const tbody=document.getElementById('sel-body');
+  tbody.innerHTML='';
+  let totalImporte=0;
+  const items=selected.map(s=>{
+    const on=ONS_DATA.find(o=>o.ticker===s.ticker);
+    const importe=s.nominal*(on.precio/100);
+    totalImporte+=importe;
+    return{...on,nominal:s.nominal,importe};
+  });
+  items.forEach((it,i)=>{
+    const alloc=totalImporte>0?(it.importe/totalImporte*100):0;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="tk">${it.ticker}</span></td>
+      <td>${it.emisor}</td>
+      <td style="font-size:11px;color:var(--text2)">${it.sector}</td>
+      <td style="font-family:var(--mono)">${it.tir!=null?it.tir.toFixed(2)+'%':'--'}</td>
+      <td style="font-family:var(--mono)">${it.mduration!=null?it.mduration.toFixed(2):'--'}</td>
+      <td style="font-family:var(--mono)">${it.precio.toFixed(2)}</td>
+      <td><input class="nom-input" type="number" value="${it.nominal}" min="1" step="1" onchange="updateNominal('${it.ticker}',this.value)"></td>
+      <td style="font-family:var(--mono);font-weight:600">$${fmt(it.importe)}</td>
+      <td style="font-family:var(--mono);color:var(--iq-teal)">${alloc.toFixed(1)}%</td>
+      <td><button class="btn-rm" onclick="removeON('${it.ticker}')">&#10005;</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('sel-count').textContent=items.length+' instrumento'+(items.length>1?'s':'');
+  let tirPond=0,tirTotal=0,durPond=0,durTotal=0;
+  items.forEach(it=>{
+    if(it.tir!=null){tirPond+=it.tir*it.importe;tirTotal+=it.importe;}
+    if(it.mduration!=null&&it.mduration>0){durPond+=it.mduration*it.importe;durTotal+=it.importe;}
+  });
+  document.getElementById('s-total').textContent='USD '+fmt(totalImporte);
+  document.getElementById('s-tir').textContent=(tirTotal>0?(tirPond/tirTotal).toFixed(2):'--')+'%';
+  document.getElementById('s-dur').textContent=(durTotal>0?(durPond/durTotal).toFixed(2):'--')+' a.';
+  document.getElementById('s-qty').textContent=items.length;
+
+  const allocBar=document.getElementById('alloc-bar');
+  const allocLeg=document.getElementById('alloc-legend');
+  allocBar.innerHTML='';allocLeg.innerHTML='';
+  items.forEach((it,i)=>{
+    const pct=totalImporte>0?(it.importe/totalImporte*100):0;
+    const color=COLORS[i%COLORS.length];
+    const seg=document.createElement('div');
+    seg.className='alloc-seg';seg.style.width=pct+'%';seg.style.background=color;
+    allocBar.appendChild(seg);
+    allocLeg.innerHTML+='<div class="alloc-item"><span class="alloc-dot" style="background:'+color+'"></span>'+it.ticker+' '+pct.toFixed(1)+'%</div>';
+  });
+  buildCashFlow(items,totalImporte);
+}
+
+function buildCashFlow(items,totalImporte){
+  const currentYear=new Date().getFullYear();
+  const years={};
+  for(let y=currentYear;y<=2038;y++) years[y]={cupones:0,amort:0};
+  items.forEach(it=>{
+    const vencYear=parseInt(it.vencimiento.split('-')[0]);
+    const cuponSem=it.nominal*(it.cuponAnual/2);
+    for(let y=currentYear;y<=vencYear;y++){
+      if(years[y]!==undefined){
+        const c=(y===currentYear)?1:(y===vencYear?1:2);
+        years[y].cupones+=cuponSem*c;
+      }
+    }
+    if(it.amortSchedule){
+      it.amortSchedule.forEach(a=>{
+        if(years[a.year]!==undefined) years[a.year].amort+=it.nominal*a.pct;
+      });
+    }
+  });
+  const cfBody=document.getElementById('cf-body');
+  cfBody.innerHTML='';
+  let totalCup=0,totalAmort=0,acum=0;
+  const cL=[],cC=[],cA=[];
+  Object.keys(years).sort().forEach(y=>{
+    const yr=years[y];
+    if(yr.cupones===0&&yr.amort===0) return;
+    const total=yr.cupones+yr.amort;
+    acum+=total;totalCup+=yr.cupones;totalAmort+=yr.amort;
+    cL.push(y);cC.push(Math.round(yr.cupones));cA.push(Math.round(yr.amort));
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+y+'</td><td>'+fmt(yr.cupones)+'</td><td>'+fmt(yr.amort)+'</td><td style="font-weight:600">'+fmt(total)+'</td><td style="color:var(--iq-teal)">'+fmt(acum)+'</td>';
+    cfBody.appendChild(tr);
+  });
+  const trT=document.createElement('tr');trT.className='cf-total';
+  trT.innerHTML='<td>TOTAL</td><td>'+fmt(totalCup)+'</td><td>'+fmt(totalAmort)+'</td><td>'+fmt(totalCup+totalAmort)+'</td><td></td>';
+  cfBody.appendChild(trT);
+  document.getElementById('s-ret').textContent='USD '+fmt(totalCup+totalAmort);
+  updateChartData(cL,cC,cA);
+}
+
+function updateChartData(labels,cup,amort){
+  const ctx=document.getElementById('cfChart').getContext('2d');
+  if(cfChart) cfChart.destroy();
+  const isDark=document.documentElement.dataset.theme==='dark';
+  cfChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Cupones',data:cup,backgroundColor:'#0043aa',borderRadius:4,barPercentage:0.7},
+      {label:'Amortizacion',data:amort,backgroundColor:'#61b0bc',borderRadius:4,barPercentage:0.7}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{color:isDark?'#64748b':'#475569',font:{family:"'Plus Jakarta Sans'",size:11,weight:600}}},
+        tooltip:{backgroundColor:isDark?'#1e293b':'#fff',titleColor:isDark?'#e2e8f0':'#1e293b',bodyColor:isDark?'#64748b':'#475569',borderColor:isDark?'#334155':'#e2e8f0',borderWidth:1,
+          callbacks:{label:ctx=>''+ctx.dataset.label+': USD '+ctx.parsed.y.toLocaleString()}}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:isDark?'#94a3b8':'#94a3b8',font:{size:11}}},
+        y:{stacked:true,grid:{color:isDark?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)'},ticks:{color:isDark?'#94a3b8':'#94a3b8',font:{size:11},callback:v=>'$'+v.toLocaleString()}}
+      }
+    }
+  });
+}
+
+function updateChart(){
+  if(!cfChart) return;
+  const isDark=document.documentElement.dataset.theme==='dark';
+  cfChart.options.plugins.legend.labels.color=isDark?'#64748b':'#475569';
+  cfChart.options.scales.x.ticks.color=isDark?'#94a3b8':'#94a3b8';
+  cfChart.options.scales.y.ticks.color=isDark?'#94a3b8':'#94a3b8';
+  cfChart.options.scales.y.grid.color=isDark?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  cfChart.update();
+}
+
+function downloadPDF(){
+  const items=selected.map(s=>{const on=ONS_DATA.find(o=>o.ticker===s.ticker);return{...on,nominal:s.nominal,importe:s.nominal*(on.precio/100)};});
+  const totalImporte=items.reduce((s,it)=>s+it.importe,0);
+  let tirPond=0,tirTotal=0,durPond=0,durTotal=0;
+  items.forEach(it=>{
+    if(it.tir!=null){tirPond+=it.tir*it.importe;tirTotal+=it.importe;}
+    if(it.mduration!=null&&it.mduration>0){durPond+=it.mduration*it.importe;durTotal+=it.importe;}
+  });
+  const today=new Date().toLocaleDateString('es-AR');
+  let html='<div style="font-family:Helvetica,Arial,sans-serif;color:#0B1D3A;padding:30px;">';
+  html+='<div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;border-bottom:3px solid #0043aa;padding-bottom:16px">';
+  html+='<div style="width:44px;height:44px;background:#0043aa;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff">IQ</div>';
+  html+='<div><div style="font-size:20px;font-weight:800"><span style="color:#00D4AA">IQ</span> Inversiones - Propuesta de ONs</div>';
+  html+='<div style="font-size:12px;color:#666">Fecha: '+today+'</div></div></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:24px">';
+  html+='<div style="background:#F0F8F6;padding:14px;border-radius:10px;border-left:4px solid #0043aa"><div style="font-size:10px;color:#666;text-transform:uppercase;font-weight:700">Inversion Total</div><div style="font-size:20px;font-weight:800">USD '+fmt(totalImporte)+'</div></div>';
+  html+='<div style="background:#F0F4F8;padding:14px;border-radius:10px;border-left:4px solid #61b0bc"><div style="font-size:10px;color:#666;text-transform:uppercase;font-weight:700">TIR Ponderada</div><div style="font-size:20px;font-weight:800">'+(tirTotal>0?(tirPond/tirTotal).toFixed(2):'--')+'%</div></div>';
+  html+='<div style="background:#FFF8E8;padding:14px;border-radius:10px;border-left:4px solid #b4bd00"><div style="font-size:10px;color:#666;text-transform:uppercase;font-weight:700">M.Duration Prom.</div><div style="font-size:20px;font-weight:800">'+(durTotal>0?(durPond/durTotal).toFixed(2):'--')+' a.</div></div>';
+  html+='<div style="background:#F0F8F6;padding:14px;border-radius:10px;border-left:4px solid #61b0bc"><div style="font-size:10px;color:#666;text-transform:uppercase;font-weight:700">Instrumentos</div><div style="font-size:20px;font-weight:800">'+items.length+'</div></div>';
+  html+='</div>';
+  html+='<h3 style="font-size:14px;margin-bottom:10px">Composicion de cartera</h3>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:24px"><thead><tr style="background:#E8ECF4">';
+  ['Ticker','Emisor','Sector','TIR','M.Dur','Nominales','Importe','Alloc.'].forEach(h=>{
+    html+='<th style="padding:8px;text-align:'+(h==='Ticker'||h==='Emisor'||h==='Sector'?'left':'right')+';font-size:10px;text-transform:uppercase;border-bottom:2px solid #0043aa">'+h+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+  items.forEach(it=>{
+    const alloc=totalImporte>0?(it.importe/totalImporte*100).toFixed(1):'0';
+    html+='<tr style="border-bottom:1px solid #E8ECF4">';
+    html+='<td style="padding:7px 8px;font-weight:700;color:#0043aa">'+it.ticker+'</td>';
+    html+='<td style="padding:7px 8px">'+it.emisor+'</td>';
+    html+='<td style="padding:7px 8px;color:#666">'+it.sector+'</td>';
+    html+='<td style="padding:7px 8px;text-align:right;font-weight:600">'+(it.tir!=null?it.tir.toFixed(2)+'%':'--')+'</td>';
+    html+='<td style="padding:7px 8px;text-align:right">'+(it.mduration!=null?it.mduration.toFixed(2):'--')+'</td>';
+    html+='<td style="padding:7px 8px;text-align:right">'+it.nominal.toLocaleString()+'</td>';
+    html+='<td style="padding:7px 8px;text-align:right;font-weight:600">$'+fmt(it.importe)+'</td>';
+    html+='<td style="padding:7px 8px;text-align:right;color:#0043aa">'+alloc+'%</td></tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div style="margin-top:30px;padding-top:16px;border-top:1px solid #ccc;font-size:9px;color:#999;text-align:center">IQ Inversiones - Propuesta generada el '+today+' - Precios al cierre - Este documento no constituye oferta ni recomendacion de inversion.</div></div>';
+
+  const container=document.getElementById('pdf-content');
+  container.innerHTML=html;container.style.display='block';
+  html2pdf().set({
+    margin:[8,8,8,8],
+    filename:'IQ_Propuesta_ONs_'+today.replace(/\//g,'-')+'.pdf',
+    image:{type:'jpeg',quality:0.95},
+    html2canvas:{scale:2,useCORS:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}
+  }).from(container).save().then(()=>{container.style.display='none';});
+}
+
+function fmt(n){
+  if(n==null||isNaN(n)) return '--';
+  return Math.round(n).toLocaleString('es-AR');
+}
+
+</script>
+</body>
+</html>
