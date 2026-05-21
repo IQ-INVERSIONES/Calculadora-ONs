@@ -293,12 +293,16 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
 .btn-sec:hover { border-color: var(--iq-blue); color: var(--iq-blue); }
 
 /* CF table */
-.cf-tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-.cf-tbl th { text-align: right; padding: 7px 9px; font: 700 9.5px var(--font); text-transform: uppercase; letter-spacing: .5px; color: var(--text3); border-bottom: 1px solid var(--border); }
+.cf-tbl { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 4px; }
+.cf-tbl th { text-align: right; padding: 5px 6px; font: 700 8px var(--font); text-transform: uppercase; letter-spacing: .4px; color: var(--text3); border-bottom: 1px solid var(--border); }
 .cf-tbl th:first-child { text-align: left; }
-.cf-tbl td { padding: 6px 9px; text-align: right; font-family: var(--mono); font-size: 11.5px; border-bottom: 1px solid var(--border); }
-.cf-tbl td:first-child { text-align: left; font-family: var(--font); font-weight: 600; }
-.cf-tbl .cf-total td { font-weight: 700; color: var(--iq-blue); border-top: 2px solid var(--iq-blue); border-bottom: none; }
+.cf-tbl td { padding: 4px 6px; text-align: right; font-family: var(--mono); font-size: 10px; border-bottom: 1px solid var(--border); }
+.cf-tbl td:first-child { text-align: left; font-family: var(--font); font-weight: 700; }
+.cf-tbl td.has-val { color: var(--text); }
+.cf-tbl td.no-val { color: var(--text3); }
+.cf-tbl td.amort-val { color: var(--iq-blue); font-weight: 600; }
+.cf-tbl tr.cf-total td { font-weight: 700; color: var(--iq-blue); border-top: 2px solid var(--iq-blue); border-bottom: none; }
+.cf-tbl td:last-child { font-weight: 700; }
 
 .chart-box { position: relative; height: 300px; margin-top: 18px; }
 
@@ -421,12 +425,14 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
         </div>
 
         <div class="card" style="margin-bottom:18px" id="cf-card">
-          <div class="card-h"><span class="card-t">Flujo de Fondos Anual (Cupones + Amortizacion)</span></div>
+          <div class="card-h"><span class="card-t">Flujo de Fondos — Detalle Mensual</span></div>
           <div class="card-b" style="padding:0;overflow-x:auto">
-            <table class="cf-tbl" id="cf-table">
-              <thead><tr><th>Ano</th><th>Cupones</th><th>Amortizacion</th><th>Retorno Total</th><th>Acumulado</th></tr></thead>
-              <tbody id="cf-body"></tbody>
-            </table>
+            <div style="padding:12px 14px 4px;font:700 12px var(--font);color:var(--iq-teal);text-transform:uppercase;letter-spacing:1px">Cupones</div>
+            <table class="cf-tbl" id="cf-cupones"></table>
+            <div style="padding:12px 14px 4px;font:700 12px var(--font);color:var(--iq-blue);text-transform:uppercase;letter-spacing:1px">Amortizacion</div>
+            <table class="cf-tbl" id="cf-amort"></table>
+            <div style="padding:12px 14px 4px;font:700 12px var(--font);color:var(--iq-olive);text-transform:uppercase;letter-spacing:1px">Retorno Total</div>
+            <table class="cf-tbl" id="cf-retorno"></table>
           </div>
           <div class="chart-box"><canvas id="cfChart"></canvas></div>
         </div>
@@ -826,54 +832,72 @@ function renderProposal(){
 }
 
 function buildCashFlow(items,totalImporte){
-  const currentYear=new Date().getFullYear();
-  const years={};
-  for(let y=currentYear;y<=2038;y++) years[y]={cupones:0,amort:0};
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const monthlyData={};
   items.forEach(it=>{
     const cf=CF_DATA[it.ticker];
     if(cf){
       cf.forEach(p=>{
-        const yr=parseInt(p.d.split('-')[0]);
-        if(years[yr]!==undefined){
-          years[yr].cupones+=it.nominal*p.i;
-          years[yr].amort+=it.nominal*p.a;
-        }
+        const yr=p.d.slice(0,4);
+        const mo=parseInt(p.d.slice(5,7))-1;
+        if(!monthlyData[yr]) monthlyData[yr]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
+        monthlyData[yr].cup[mo]+=it.nominal*p.i;
+        monthlyData[yr].amort[mo]+=it.nominal*p.a;
       });
-    } else {
-      // Fallback to simplified
-      const vencYear=parseInt(it.vencimiento.split('-')[0]);
-      const cuponSem=it.nominal*(it.cuponAnual/2);
-      for(let y=currentYear;y<=vencYear;y++){
-        if(years[y]!==undefined){
-          const c=(y===currentYear)?1:(y===vencYear?1:2);
-          years[y].cupones+=cuponSem*c;
-        }
-      }
-      if(it.amortSchedule){
-        it.amortSchedule.forEach(a=>{
-          if(years[a.year]!==undefined) years[a.year].amort+=it.nominal*a.pct;
-        });
-      }
     }
   });
-  const cfBody=document.getElementById('cf-body');
-  cfBody.innerHTML='';
-  let totalCup=0,totalAmort=0,acum=0;
+  const yrs=Object.keys(monthlyData).sort();
+
+  function renderMonthlyTable(tableId,dataKey,altKey){
+    const tbl=document.getElementById(tableId);
+    let html='<thead><tr><th>Año</th>';
+    meses.forEach(m=>{html+='<th>'+m+'</th>';});
+    html+='<th>Ingreso anual</th></tr></thead><tbody>';
+    const totals=Array(12).fill(0);
+    let grandTotal=0;
+    yrs.forEach(yr=>{
+      const d=monthlyData[yr];
+      const row=dataKey==='total'?d.cup.map((c,i)=>c+d.amort[i]):d[dataKey];
+      let rowTotal=0;
+      html+='<tr><td>'+yr+'</td>';
+      for(let m=0;m<12;m++){
+        const v=row[m];
+        rowTotal+=v;
+        totals[m]+=v;
+        if(v>0){
+          const cls=dataKey==='amort'?'amort-val':'has-val';
+          html+='<td class="'+cls+'">'+fmt(v)+'</td>';
+        } else {
+          html+='<td class="no-val">-</td>';
+        }
+      }
+      grandTotal+=rowTotal;
+      html+='<td style="color:var(--iq-blue)">'+fmt(rowTotal)+'</td></tr>';
+    });
+    html+='<tr class="cf-total"><td>Total</td>';
+    for(let m=0;m<12;m++) html+='<td>'+(totals[m]>0?fmt(totals[m]):'-')+'</td>';
+    html+='<td>'+fmt(grandTotal)+'</td></tr>';
+    html+='</tbody>';
+    tbl.innerHTML=html;
+    return grandTotal;
+  }
+
+  renderMonthlyTable('cf-cupones','cup');
+  renderMonthlyTable('cf-amort','amort');
+  const grandTotal=renderMonthlyTable('cf-retorno','total');
+
+  document.getElementById('s-ret').textContent='USD '+fmt(grandTotal);
+
+  // Chart data (annual summary)
   const cL=[],cC=[],cA=[];
-  Object.keys(years).sort().forEach(y=>{
-    const yr=years[y];
-    if(yr.cupones===0&&yr.amort===0) return;
-    const total=yr.cupones+yr.amort;
-    acum+=total;totalCup+=yr.cupones;totalAmort+=yr.amort;
-    cL.push(y);cC.push(Math.round(yr.cupones));cA.push(Math.round(yr.amort));
-    const tr=document.createElement('tr');
-    tr.innerHTML='<td>'+y+'</td><td>'+fmt(yr.cupones)+'</td><td>'+fmt(yr.amort)+'</td><td style="font-weight:600">'+fmt(total)+'</td><td style="color:var(--iq-teal)">'+fmt(acum)+'</td>';
-    cfBody.appendChild(tr);
+  yrs.forEach(yr=>{
+    const d=monthlyData[yr];
+    const cupTotal=d.cup.reduce((a,b)=>a+b,0);
+    const amortTotal=d.amort.reduce((a,b)=>a+b,0);
+    if(cupTotal>0||amortTotal>0){
+      cL.push(yr);cC.push(Math.round(cupTotal));cA.push(Math.round(amortTotal));
+    }
   });
-  const trT=document.createElement('tr');trT.className='cf-total';
-  trT.innerHTML='<td>TOTAL</td><td>'+fmt(totalCup)+'</td><td>'+fmt(totalAmort)+'</td><td>'+fmt(totalCup+totalAmort)+'</td><td></td>';
-  cfBody.appendChild(trT);
-  document.getElementById('s-ret').textContent='USD '+fmt(totalCup+totalAmort);
   updateChartData(cL,cC,cA);
 }
 
@@ -984,42 +1008,51 @@ function downloadPDF(){
   });
   h+='</table>';
 
-  // FLUJO DE FONDOS
+  // FLUJO DE FONDOS - 3 tablas (Cupones, Amortización, Retorno Total)
   const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const monthlyData={};
   items.forEach(it=>{
     const cf=CF_DATA[it.ticker];if(!cf) return;
     cf.forEach(p=>{
       const yr=p.d.slice(0,4);const mo=parseInt(p.d.slice(5,7))-1;
-      if(!monthlyData[yr]) monthlyData[yr]={cupones:Array(12).fill(0),amort:Array(12).fill(0)};
-      monthlyData[yr].cupones[mo]+=it.nominal*p.i;
+      if(!monthlyData[yr]) monthlyData[yr]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
+      monthlyData[yr].cup[mo]+=it.nominal*p.i;
       monthlyData[yr].amort[mo]+=it.nominal*p.a;
     });
   });
   const yrs=Object.keys(monthlyData).sort();
   if(yrs.length>0){
-    h+='<table style="width:100%;margin:8px 0 6px;border-bottom:2px solid #0043aa;padding-bottom:5px"><tr><td style="vertical-align:middle"><img src="'+logoSrc+'" style="height:22px"></td><td style="padding-left:6px;font-size:10px;font-weight:700;color:#0043aa">Flujo de Fondos Mensual (USD)</td><td style="text-align:right;font-size:8px;color:#666">'+cliente+'</td></tr></table>';
-    h+='<table style="width:100%;border-collapse:collapse;font-size:7px;margin-bottom:6px">';
-    h+='<tr style="background:#e8ecf4"><th style="padding:2px 3px;text-align:left;font-size:6.5px;border-bottom:2px solid #0043aa">AÑO</th>';
-    meses.forEach(m=>{h+='<th style="padding:2px;text-align:right;font-size:6.5px;border-bottom:2px solid #0043aa">'+m+'</th>';});
-    h+='<th style="padding:2px 3px;text-align:right;font-size:6.5px;border-bottom:2px solid #0043aa;font-weight:800">TOTAL</th></tr>';
-    let gT=0;
-    yrs.forEach(yr=>{
-      const d=monthlyData[yr];let rT=0;
-      h+='<tr style="border-bottom:1px solid #e8ecf4"><td style="padding:2px 3px;font-weight:700">'+yr+'</td>';
-      for(let m=0;m<12;m++){
-        const v=d.cupones[m]+d.amort[m];rT+=v;
-        const ha=d.amort[m]>0;
-        h+='<td style="padding:2px;text-align:right;color:'+(v>0?(ha?'#0043aa':'#475569'):'#d0d0d0')+';font-weight:'+(ha?'700':'400')+'">'+(v>0?Math.round(v).toLocaleString():'\u2013')+'</td>';
-      }
-      gT+=rT;
-      h+='<td style="padding:2px 3px;text-align:right;font-weight:700;color:#0043aa">'+Math.round(rT).toLocaleString()+'</td></tr>';
-    });
-    h+='<tr style="border-top:2px solid #0043aa"><td style="padding:3px;font-weight:800;color:#0043aa">TOTAL</td>';
-    for(let m=0;m<12;m++) h+='<td></td>';
-    h+='<td style="padding:3px;text-align:right;font-weight:800;color:#0043aa">USD '+Math.round(gT).toLocaleString()+'</td></tr>';
-    h+='</table>';
-    h+='<div style="font-size:6.5px;color:#94a3b8"><span style="color:#0043aa;font-weight:700">Azul negrita</span> = incluye amortizacion &nbsp;|&nbsp; Normal = solo cupon</div>';
+    h+='<table style="width:100%;margin:8px 0 6px;border-bottom:2px solid #0043aa;padding-bottom:5px"><tr><td style="vertical-align:middle"><img src="'+logoSrc+'" style="height:22px"></td><td style="padding-left:6px;font-size:10px;font-weight:700;color:#0043aa">Flujo de Fondos</td><td style="text-align:right;font-size:8px;color:#666">'+cliente+'</td></tr></table>';
+
+    function pdfMonthlyTable(title,color,dataKey){
+      let t='<div style="font-size:8px;font-weight:700;color:'+color+';text-transform:uppercase;letter-spacing:1px;margin:6px 0 3px">'+title+'</div>';
+      t+='<table style="width:100%;border-collapse:collapse;font-size:6.5px;margin-bottom:4px">';
+      t+='<tr style="background:#e8ecf4"><th style="padding:2px 3px;text-align:left;font-size:6px;border-bottom:1.5px solid '+color+'">Año</th>';
+      meses.forEach(m=>{t+='<th style="padding:2px;text-align:right;font-size:6px;border-bottom:1.5px solid '+color+'">'+m+'</th>';});
+      t+='<th style="padding:2px 3px;text-align:right;font-size:6px;border-bottom:1.5px solid '+color+';font-weight:800">Ingreso anual</th></tr>';
+      const totals=Array(12).fill(0);let gT=0;
+      yrs.forEach(yr=>{
+        const d=monthlyData[yr];
+        const row=dataKey==='total'?d.cup.map((c,i)=>c+d.amort[i]):d[dataKey];
+        let rT=0;
+        t+='<tr style="border-bottom:1px solid #eee"><td style="padding:2px 3px;font-weight:700">'+yr+'</td>';
+        for(let m=0;m<12;m++){
+          const v=row[m];rT+=v;totals[m]+=v;
+          t+='<td style="padding:2px;text-align:right;color:'+(v>0?'#1e293b':'#d0d0d0')+'">'+(v>0?Math.round(v).toLocaleString():'\u2013')+'</td>';
+        }
+        gT+=rT;
+        t+='<td style="padding:2px 3px;text-align:right;font-weight:700;color:'+color+'">'+Math.round(rT).toLocaleString()+'</td></tr>';
+      });
+      t+='<tr style="border-top:1.5px solid '+color+'"><td style="padding:2px 3px;font-weight:800;color:'+color+'">Total</td>';
+      for(let m=0;m<12;m++) t+='<td style="padding:2px;text-align:right;font-weight:600;color:'+color+'">'+(totals[m]>0?Math.round(totals[m]).toLocaleString():'')+'</td>';
+      t+='<td style="padding:2px 3px;text-align:right;font-weight:800;color:'+color+'">'+Math.round(gT).toLocaleString()+'</td></tr>';
+      t+='</table>';
+      return t;
+    }
+
+    h+=pdfMonthlyTable('Cupones','#61b0bc','cup');
+    h+=pdfMonthlyTable('Amortizacion','#0043aa','amort');
+    h+=pdfMonthlyTable('Retorno Total','#8a9e00','total');
   }
 
   // FOOTER
