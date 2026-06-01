@@ -833,16 +833,23 @@ function renderProposal(){
 
 function buildCashFlow(items,totalImporte){
   const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const now=new Date();
+  const curYear=now.getFullYear();
+  const curMonth=now.getMonth(); // 0-indexed
   const monthlyData={};
   items.forEach(it=>{
     const cf=CF_DATA[it.ticker];
     if(cf){
       cf.forEach(p=>{
-        const yr=p.d.slice(0,4);
+        const yr=parseInt(p.d.slice(0,4));
         const mo=parseInt(p.d.slice(5,7))-1;
-        if(!monthlyData[yr]) monthlyData[yr]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
-        monthlyData[yr].cup[mo]+=it.nominal*p.i;
-        monthlyData[yr].amort[mo]+=it.nominal*p.a;
+        // Solo pagos futuros (desde el mes actual en adelante)
+        if(yr>curYear||(yr===curYear&&mo>=curMonth)){
+          const yrKey=''+yr;
+          if(!monthlyData[yrKey]) monthlyData[yrKey]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
+          monthlyData[yrKey].cup[mo]+=it.nominal*p.i;
+          monthlyData[yrKey].amort[mo]+=it.nominal*p.a;
+        }
       });
     }
   });
@@ -1010,14 +1017,18 @@ function downloadPDF(){
 
   // FLUJO DE FONDOS - 3 tablas (Cupones, Amortización, Retorno Total)
   const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const now=new Date();const curY=now.getFullYear();const curM=now.getMonth();
   const monthlyData={};
   items.forEach(it=>{
     const cf=CF_DATA[it.ticker];if(!cf) return;
     cf.forEach(p=>{
-      const yr=p.d.slice(0,4);const mo=parseInt(p.d.slice(5,7))-1;
-      if(!monthlyData[yr]) monthlyData[yr]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
-      monthlyData[yr].cup[mo]+=it.nominal*p.i;
-      monthlyData[yr].amort[mo]+=it.nominal*p.a;
+      const yr=parseInt(p.d.slice(0,4));const mo=parseInt(p.d.slice(5,7))-1;
+      if(yr>curY||(yr===curY&&mo>=curM)){
+        const yrKey=''+yr;
+        if(!monthlyData[yrKey]) monthlyData[yrKey]={cup:Array(12).fill(0),amort:Array(12).fill(0)};
+        monthlyData[yrKey].cup[mo]+=it.nominal*p.i;
+        monthlyData[yrKey].amort[mo]+=it.nominal*p.a;
+      }
     });
   });
   const yrs=Object.keys(monthlyData).sort();
