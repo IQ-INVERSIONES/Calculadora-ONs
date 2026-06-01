@@ -1032,23 +1032,7 @@ function updatePrecioCat(ticker,val){
     on.precio=v;
     on.tir=calcTIR(ticker,v);
   }
-  // Re-render scatter + curva sin re-renderizar toda la tabla (para no perder foco)
-  const data=getFiltered();
-  renderScatter(data);
-  // Actualizar la TIR en la fila (buscar el input y actualizar el td siguiente)
-  const inputs=document.querySelectorAll('#catalog-body input[type="number"]');
-  inputs.forEach(inp=>{
-    if(inp.value===v.toFixed(2) && inp.closest('tr')){
-      const row=inp.closest('tr');
-      const tds=row.querySelectorAll('td');
-      // La TIR está en el td después del precio (index 6)
-      if(tds[6] && on.tir!=null){
-        tds[6].style.color=on.tir>0?'var(--iq-green)':on.tir<0?'var(--iq-red)':'var(--text3)';
-        tds[6].textContent=on.tir.toFixed(2)+'%';
-      }
-    }
-  });
-  // Si está en la propuesta, actualizar también
+  renderCatalog();
   if(selected.some(s=>s.ticker===ticker)) renderProposal();
 }
 
