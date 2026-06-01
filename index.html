@@ -319,6 +319,61 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
 
 .pdf-content { display: none; }
 
+/* Calendario de cobros */
+.cal-month {
+  min-width: 120px; max-width: 140px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.cal-month:hover { border-color: var(--iq-blue); box-shadow: 0 2px 8px rgba(0,67,170,.1); }
+.cal-month.has-amort { border-color: var(--iq-blue); }
+.cal-header {
+  padding: 6px 8px;
+  background: var(--bg3);
+  font: 700 10px var(--font);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text3);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.cal-month.has-payment .cal-header { background: rgba(0,67,170,.06); color: var(--iq-blue); }
+[data-theme="dark"] .cal-month.has-payment .cal-header { background: rgba(97,176,188,.08); color: var(--iq-teal); }
+.cal-month.has-amort .cal-header { background: rgba(0,67,170,.12); color: var(--iq-blue); }
+[data-theme="dark"] .cal-month.has-amort .cal-header { background: rgba(0,67,170,.15); }
+.cal-body { padding: 6px 8px; min-height: 60px; }
+.cal-total {
+  font: 700 14px var(--mono);
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+}
+.cal-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg3);
+  margin-bottom: 6px;
+  overflow: hidden;
+  display: flex;
+}
+.cal-bar-cup { height: 100%; background: var(--iq-teal); }
+.cal-bar-amort { height: 100%; background: var(--iq-blue); }
+.cal-detail {
+  font-size: 9px;
+  color: var(--text3);
+  line-height: 1.4;
+}
+.cal-detail .cal-tk {
+  font: 600 9px var(--mono);
+  color: var(--text2);
+}
+.cal-detail .cal-cup { color: var(--iq-teal); }
+.cal-detail .cal-amt { color: var(--iq-blue); font-weight: 600; }
+.cal-empty { text-align: center; color: var(--text3); font-size: 10px; padding-top: 14px; opacity: .5; }
+
 @media (max-width: 768px) {
   .header { padding: 0 12px; }
   .header-title { font-size: 12px; }
@@ -364,6 +419,16 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
       <div class="fg"><label>Tipo</label><select id="fTipo"><option value="">Todos</option><option value="ON">ON</option><option value="Bopreal">Bopreal</option><option value="Bono Soberano">Bono Soberano</option><option value="Bono Provincial">Bono Provincial</option></select></div>
       <button class="btn-clear" onclick="clearFilters()">Limpiar</button>
     </div>
+    <!-- Scatter TIR vs Duration -->
+    <div class="card" style="margin-bottom:18px" id="scatter-card">
+      <div class="card-h">
+        <span class="card-t">Mapa TIR vs Duration</span>
+        <span style="font-size:11px;color:var(--text3)">Click en un punto para agregar al Armador</span>
+      </div>
+      <div class="card-b" style="padding:12px">
+        <div style="position:relative;height:340px"><canvas id="scatterChart"></canvas></div>
+      </div>
+    </div>
     <div class="tbl-wrap">
       <div class="tbl-scroll">
         <table>
@@ -403,7 +468,7 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
             </div>
             <table class="sel-tbl" id="sel-table" style="display:none">
               <thead><tr>
-                <th>Ticker</th><th>Emisor</th><th>Sector</th><th>TIR %</th><th>Dur.</th><th>Precio</th>
+                <th>Ticker</th><th>Emisor</th><th>Sector</th><th>TIR %</th><th>Dur.</th><th>Precio ✎</th>
                 <th>Prox. pago</th><th>Nominales (USD)</th><th>Importe</th><th>Alloc %</th><th></th>
               </tr></thead>
               <tbody id="sel-body"></tbody>
@@ -421,6 +486,17 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
                 <div class="alloc-legend" id="alloc-legend"></div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Calendario visual de cobros -->
+        <div class="card" style="margin-bottom:18px" id="cal-card">
+          <div class="card-h">
+            <span class="card-t">Calendario de cobros</span>
+            <span style="font-size:11px;color:var(--text3)" id="cal-range"></span>
+          </div>
+          <div class="card-b" style="padding:10px 14px;overflow-x:auto">
+            <div id="cal-timeline" style="display:flex;gap:6px;min-width:max-content"></div>
           </div>
         </div>
 
@@ -556,6 +632,7 @@ let selected=[];
 let sortCol='tir', sortAsc=false;
 let cfChart=null;
 let pieChart=null;
+let scatterChart=null;
 const COLORS=['#0043aa','#61b0bc','#8a9e00','#3366bb','#7dc8d4','#b4bd00','#1a5cc8','#94d2db','#6d8400','#4d80d0','#a8dce3','#d4dc4a'];
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -685,6 +762,174 @@ function renderCatalog(){
     tbody.appendChild(tr);
   });
   document.getElementById('tbl-count').textContent=data.length+' instrumentos';
+  renderScatter(data);
+}
+
+function renderScatter(data){
+  const ctx=document.getElementById('scatterChart').getContext('2d');
+  if(scatterChart) scatterChart.destroy();
+  const isDk=document.documentElement.dataset.theme==='dark';
+
+  // Separar recomendadas vs normales, filtrar las que tienen TIR y Duration
+  const recData=[];
+  const normalData=[];
+  const allPoints=[];
+  data.forEach(o=>{
+    if(o.tir==null||o.mduration==null||o.mduration<=0) return;
+    const point={x:o.mduration,y:o.tir,ticker:o.ticker,emisor:o.emisor,sector:o.sector,precio:o.precio};
+    if(o.recomendada) recData.push(point);
+    else normalData.push(point);
+    allPoints.push({x:o.mduration,y:o.tir});
+  });
+
+  // Calcular curva de rendimiento (regresión logarítmica: TIR = a * ln(Duration) + b)
+  let curveData=[];
+  if(allPoints.length>=3){
+    const n=allPoints.length;
+    let sumLnX=0,sumY=0,sumLnX2=0,sumLnXY=0;
+    allPoints.forEach(p=>{
+      const lnx=Math.log(p.x);
+      sumLnX+=lnx;
+      sumY+=p.y;
+      sumLnX2+=lnx*lnx;
+      sumLnXY+=lnx*p.y;
+    });
+    const denom=n*sumLnX2-sumLnX*sumLnX;
+    if(Math.abs(denom)>1e-10){
+      const a=(n*sumLnXY-sumLnX*sumY)/denom;
+      const b=(sumY-a*sumLnX)/n;
+      // Generar puntos suaves de la curva
+      const minX=Math.max(0.05,Math.min(...allPoints.map(p=>p.x))-0.3);
+      const maxX=Math.max(...allPoints.map(p=>p.x))+0.5;
+      for(let x=minX;x<=maxX;x+=0.1){
+        curveData.push({x:Math.round(x*100)/100,y:Math.round((a*Math.log(x)+b)*100)/100});
+      }
+    }
+  }
+
+  const datasets=[
+    {
+      label:'Curva de rendimiento',
+      data:curveData,
+      type:'line',
+      borderColor:isDk?'rgba(255,255,255,.25)':'rgba(0,0,0,.15)',
+      borderWidth:2,
+      borderDash:[6,4],
+      pointRadius:0,
+      pointHoverRadius:0,
+      fill:false,
+      tension:0.4,
+      order:3
+    },
+    {
+      label:'Recomendadas IQ',
+      data:recData,
+      backgroundColor:'rgba(180,189,0,.85)',
+      borderColor:'#8a9e00',
+      borderWidth:2,
+      pointRadius:8,
+      pointHoverRadius:11,
+      pointStyle:'triangle',
+      hoverBorderWidth:3,
+      order:1
+    },
+    {
+      label:'Otras ONs',
+      data:normalData,
+      backgroundColor:isDk?'rgba(97,176,188,.5)':'rgba(0,67,170,.4)',
+      borderColor:isDk?'#61b0bc':'#0043aa',
+      borderWidth:1.5,
+      pointRadius:5.5,
+      pointHoverRadius:8,
+      hoverBorderWidth:2,
+      order:2
+    }
+  ];
+
+  scatterChart=new Chart(ctx,{
+    type:'scatter',
+    data:{datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      onClick:function(e,elements){
+        if(elements.length>0){
+          const el=elements[0];
+          const ds=el.datasetIndex;
+          const idx=el.index;
+          // Skip curve dataset (index 0)
+          if(ds===0) return;
+          const pt=ds===1?recData[idx]:normalData[idx];
+          if(pt) addON(pt.ticker);
+        }
+      },
+      plugins:{
+        legend:{
+          position:'top',
+          labels:{
+            color:isDk?'#94a3b8':'#475569',
+            font:{family:"'Montserrat'",size:11,weight:'600'},
+            usePointStyle:true,
+            pointStyleWidth:14,
+            filter:function(item){return true;}
+          }
+        },
+        tooltip:{
+          backgroundColor:isDk?'#1e293b':'#fff',
+          titleColor:isDk?'#e2e8f0':'#1e293b',
+          bodyColor:isDk?'#94a3b8':'#475569',
+          borderColor:isDk?'#334155':'#e2e8f0',
+          borderWidth:1,
+          padding:10,
+          displayColors:false,
+          filter:function(item){return item.datasetIndex!==0;},
+          callbacks:{
+            title:function(items){
+              if(items.length===0) return '';
+              const pt=items[0].raw;
+              return pt.ticker+' — '+pt.emisor;
+            },
+            label:function(ctx){
+              const pt=ctx.raw;
+              if(!pt.ticker) return '';
+              // Calcular posición vs curva
+              let vsLabel='';
+              if(curveData.length>1){
+                const closest=curveData.reduce((best,c)=>Math.abs(c.x-pt.x)<Math.abs(best.x-pt.x)?c:best);
+                const diff=pt.y-closest.y;
+                vsLabel=diff>=0?'↑ +'+(diff).toFixed(2)+'% sobre curva':'↓ '+(diff).toFixed(2)+'% bajo curva';
+              }
+              const lines=[
+                'TIR: '+pt.y.toFixed(2)+'%',
+                'Duration: '+pt.x.toFixed(2)+' años',
+                'Sector: '+pt.sector,
+                'Precio: '+pt.precio.toFixed(2)
+              ];
+              if(vsLabel) lines.push(vsLabel);
+              return lines;
+            },
+            afterLabel:function(ctx){
+              if(ctx.datasetIndex===0) return '';
+              return '→ Click para agregar';
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          title:{display:true,text:'M.Duration (años)',color:isDk?'#94a3b8':'#64748b',font:{size:12,weight:'600',family:"'Montserrat'"}},
+          grid:{color:isDk?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)'},
+          ticks:{color:isDk?'#94a3b8':'#94a3b8',font:{size:10}},
+          min:0
+        },
+        y:{
+          title:{display:true,text:'TIR (%)',color:isDk?'#94a3b8':'#64748b',font:{size:12,weight:'600',family:"'Montserrat'"}},
+          grid:{color:isDk?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)'},
+          ticks:{color:isDk?'#94a3b8':'#94a3b8',font:{size:10},callback:v=>v+'%'}
+        }
+      }
+    }
+  });
 }
 
 function attachFilterListeners(){
@@ -703,6 +948,7 @@ function toggleTheme(){
   const h=document.documentElement;
   h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';
   if(cfChart) updateChart();
+  if(scatterChart) renderCatalog();
 }
 
 function addON(ticker){
@@ -731,6 +977,51 @@ function clearProposal(){
   renderProposal();
 }
 
+// Calculo de TIR (Yield to Maturity) via Newton-Raphson
+function calcTIR(ticker,precio){
+  const cf=CF_DATA[ticker];
+  if(!cf||cf.length===0||!precio||precio<=0) return null;
+  const hoy=new Date();
+  const pagos=cf.filter(p=>new Date(p.d)>hoy).map(p=>{
+    const fecha=new Date(p.d);
+    const t=(fecha-hoy)/(365.25*24*3600*1000); // años
+    const flujo=p.i+p.a; // pago total por unidad de nominal
+    return {t,flujo};
+  });
+  if(pagos.length===0) return null;
+  const px=precio/100; // precio como fracción
+  // Newton-Raphson: encontrar r tal que sum(flujo/(1+r)^t) = px
+  let r=0.07; // guess inicial 7%
+  for(let iter=0;iter<100;iter++){
+    let pv=0,dpv=0;
+    for(const p of pagos){
+      const disc=Math.pow(1+r,p.t);
+      pv+=p.flujo/disc;
+      dpv-=p.t*p.flujo/Math.pow(1+r,p.t+1);
+    }
+    const f=pv-px;
+    if(Math.abs(f)<1e-8) break;
+    if(Math.abs(dpv)<1e-12) break;
+    r=r-f/dpv;
+    if(r<-0.5) r=-0.3;
+    if(r>2) r=1.5;
+  }
+  return Math.round(r*10000)/100; // retorna como porcentaje con 2 decimales
+}
+
+function updatePrecio(ticker,val,input){
+  const v=parseFloat(val);
+  if(isNaN(v)||v<=0) return;
+  // Actualizar en ONS_DATA
+  const on=ONS_DATA.find(o=>o.ticker===ticker);
+  if(on){
+    on.precio=v;
+    on.tir=calcTIR(ticker,v);
+  }
+  renderCatalog();
+  renderProposal();
+}
+
 function distribuirInversion(){
   if(selected.length===0) return;
   const totalUSD=parseFloat(document.getElementById('inp-inversion').value)||0;
@@ -753,6 +1044,7 @@ function renderProposal(){
   document.getElementById('sel-empty').style.display=hasItems?'none':'';
   document.getElementById('sel-table').style.display=hasItems?'':'none';
   document.getElementById('alloc-card').style.display=hasItems?'':'none';
+  document.getElementById('cal-card').style.display=hasItems?'':'none';
   document.getElementById('cf-card').style.display=hasItems?'':'none';
   document.getElementById('btn-pdf').disabled=!hasItems;
   if(!hasItems){
@@ -777,9 +1069,9 @@ function renderProposal(){
       <td><span class="tk">${it.ticker}</span></td>
       <td>${it.emisor}</td>
       <td style="font-size:11px;color:var(--text2)">${it.sector}</td>
-      <td style="font-family:var(--mono)">${it.tir!=null?it.tir.toFixed(2)+'%':'--'}</td>
+      <td style="font-family:var(--mono);font-weight:600;color:${it.tir!=null&&it.tir>0?'var(--iq-green)':it.tir!=null&&it.tir<0?'var(--iq-red)':'var(--text3)'}">${it.tir!=null?it.tir.toFixed(2)+'%':'--'}</td>
       <td style="font-family:var(--mono)">${it.mduration!=null?it.mduration.toFixed(2):'--'}</td>
-      <td style="font-family:var(--mono)">${it.precio.toFixed(2)}</td>
+      <td><input class="nom-input" type="number" value="${it.precio.toFixed(2)}" min="0.01" step="0.01" style="width:75px" onchange="updatePrecio('${it.ticker}',this.value,this)"></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${proxPago(it.ticker)}</td>
       <td><input class="nom-input" type="number" value="${it.nominal}" min="${getNomMin(it.ticker)}" step="${getNomStep(it.ticker)}" onchange="updateNominal('${it.ticker}',this.value,this)"></td>
       <td style="font-family:var(--mono);font-weight:600">$${fmt(it.importe)}</td>
@@ -828,7 +1120,95 @@ function renderProposal(){
       }
     }
   });
+  renderCalendar(items);
   buildCashFlow(items,totalImporte);
+}
+
+function renderCalendar(items){
+  const container=document.getElementById('cal-timeline');
+  container.innerHTML='';
+  const mNombres=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const now=new Date();
+  const curY=now.getFullYear();
+  const curM=now.getMonth();
+
+  // Collect next 24 months of payments
+  const months=[];
+  for(let i=0;i<24;i++){
+    const m=(curM+i)%12;
+    const y=curY+Math.floor((curM+i)/12);
+    months.push({y,m,label:mNombres[m]+' '+y,payments:[]});
+  }
+
+  // Fill payments from CF_DATA
+  items.forEach(it=>{
+    const cf=CF_DATA[it.ticker];
+    if(!cf) return;
+    cf.forEach(p=>{
+      const pDate=new Date(p.d);
+      const pY=pDate.getFullYear();
+      const pM=pDate.getMonth();
+      const slot=months.find(s=>s.y===pY&&s.m===pM);
+      if(slot){
+        const cup=it.nominal*p.i;
+        const amort=it.nominal*p.a;
+        if(cup>0||amort>0){
+          slot.payments.push({ticker:it.ticker,cup,amort,date:p.d});
+        }
+      }
+    });
+  });
+
+  // Find max total for bar scaling
+  let maxTotal=0;
+  months.forEach(s=>{
+    const tot=s.payments.reduce((a,p)=>a+p.cup+p.amort,0);
+    if(tot>maxTotal) maxTotal=tot;
+  });
+
+  // Count months with payments for the range label
+  const withPayments=months.filter(s=>s.payments.length>0);
+  const rangeEl=document.getElementById('cal-range');
+  if(withPayments.length>0){
+    rangeEl.textContent='Proximos 24 meses — '+withPayments.length+' meses con cobros';
+  } else {
+    rangeEl.textContent='';
+  }
+
+  // Render each month
+  months.forEach(s=>{
+    const totalCup=s.payments.reduce((a,p)=>a+p.cup,0);
+    const totalAmort=s.payments.reduce((a,p)=>a+p.amort,0);
+    const total=totalCup+totalAmort;
+    const hasPayment=total>0;
+    const hasAmort=totalAmort>0;
+
+    const div=document.createElement('div');
+    div.className='cal-month'+(hasPayment?' has-payment':'')+(hasAmort?' has-amort':'');
+
+    let bodyHtml='';
+    if(hasPayment){
+      bodyHtml+='<div class="cal-total">$'+fmt(total)+'</div>';
+      // Bar
+      const cupPct=maxTotal>0?(totalCup/maxTotal*100):0;
+      const amortPct=maxTotal>0?(totalAmort/maxTotal*100):0;
+      bodyHtml+='<div class="cal-bar"><div class="cal-bar-cup" style="width:'+cupPct+'%"></div><div class="cal-bar-amort" style="width:'+amortPct+'%"></div></div>';
+      // Detail per ticker
+      bodyHtml+='<div class="cal-detail">';
+      s.payments.forEach(p=>{
+        let parts=[];
+        if(p.cup>0) parts.push('<span class="cal-cup">C:'+fmt(p.cup)+'</span>');
+        if(p.amort>0) parts.push('<span class="cal-amt">A:'+fmt(p.amort)+'</span>');
+        bodyHtml+='<div><span class="cal-tk">'+p.ticker+'</span> '+parts.join(' ')+'</div>';
+      });
+      bodyHtml+='</div>';
+    } else {
+      bodyHtml+='<div class="cal-empty">—</div>';
+    }
+
+    div.innerHTML='<div class="cal-header">'+s.label+'</div><div class="cal-body">'+bodyHtml+'</div>';
+    container.appendChild(div);
+  });
 }
 
 function buildCashFlow(items,totalImporte){
