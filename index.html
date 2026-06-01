@@ -216,7 +216,8 @@ td { padding: 10px 13px; white-space: nowrap; font-size: 13px; }
   transition: all var(--transition);
 }
 .btn-add:hover { opacity: .85; transform: translateY(-1px); }
-.btn-add.added { background: var(--bg3); color: var(--text3); cursor: default; pointer-events: none; }
+.btn-add.added { background: var(--bg3); color: var(--text3); cursor: pointer; }
+.btn-add.added:hover { background: rgba(231,76,60,.1); color: var(--iq-red); border: 1px solid var(--iq-red); }
 
 /* Recommended ON highlight */
 tbody tr.rec-row { background: rgba(180,189,0,.07); border-left: 3px solid #b4bd00; }
@@ -251,18 +252,18 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
 }
 .card-t { font: 700 14px var(--font); letter-spacing: -.2px; }
 .card-b { padding: 18px; }
-.sel-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.sel-tbl th { text-align: left; padding: 7px 10px; font: 700 10px var(--font); text-transform: uppercase; letter-spacing: .5px; color: var(--text3); border-bottom: 1px solid var(--border); }
-.sel-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.sel-tbl { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.sel-tbl th { text-align: left; padding: 6px 8px; font: 700 9px var(--font); text-transform: uppercase; letter-spacing: .4px; color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--bg2); z-index: 1; }
+.sel-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 11.5px; }
 .sel-tbl tr:last-child td { border-bottom: none; }
 .nom-input {
-  width: 95px; background: var(--input-bg); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 5px 8px;
-  font: 500 12.5px var(--mono); color: var(--text); text-align: right;
+  width: 80px; background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px 6px;
+  font: 500 11px var(--mono); color: var(--text); text-align: right;
   outline: none; transition: all var(--transition);
 }
 .nom-input:focus { border-color: var(--iq-blue); box-shadow: 0 0 0 3px var(--accent-glow); }
-.btn-rm { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; transition: color var(--transition); padding: 2px 6px; }
+.btn-rm { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; transition: color var(--transition); padding: 2px 4px; }
 .btn-rm:hover { color: var(--iq-red); }
 
 /* Summary */
@@ -460,7 +461,7 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
             <span class="card-t">ONs seleccionadas</span>
             <span id="sel-count" style="font-size:12px;color:var(--text3)"></span>
           </div>
-          <div class="card-b" style="padding:0;overflow-x:auto">
+          <div class="card-b" style="padding:0;overflow:auto;max-height:340px">
             <div id="sel-empty" class="empty">
               <div class="empty-icon">&#128202;</div>
               <div class="empty-txt">Sin ONs seleccionadas</div>
@@ -758,7 +759,7 @@ function renderCatalog(){
       <td style="font-family:var(--mono)">${o.mduration!=null?o.mduration.toFixed(2):'--'}</td>
       <td>${o.calificacion?'<span class="pill '+calCl+'">'+o.calificacion+'</span>':'<span style="color:var(--text3)">--</span>'}</td>
       <td>${o.ley?'<span class="pill '+leyCl+'">'+o.ley+'</span>':'<span style="color:var(--text3)">--</span>'}</td>
-      <td><button class="btn-add${isAdded?' added':''}" onclick="addON('${o.ticker}')">${isAdded?'Agregada':'+ Agregar'}</button></td>`;
+      <td><button class="btn-add${isAdded?' added':''}" onclick="${isAdded?`removeON('${o.ticker}')`:`addON('${o.ticker}')`}">${isAdded?'✓ Quitar':'+ Agregar'}</button></td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('tbl-count').textContent=data.length+' instrumentos';
