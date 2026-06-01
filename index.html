@@ -1474,14 +1474,29 @@ function downloadPDF(){
   container.innerHTML=h;
   container.style.display='block';
   container.style.width='760px';
+  const fname='IQ_Propuesta_ONs_'+cliente.replace(/[^a-zA-Z0-9]/g,'_')+'_'+today.split('/').join('-')+'.pdf';
+  if(typeof html2pdf==='undefined'){
+    alert('Error: la libreria PDF no cargo. Recarga la pagina e intenta de nuevo.');
+    container.style.display='none';
+    container.style.width='';
+    return;
+  }
   html2pdf().set({
     margin:[8,10,8,10],
-    filename:'IQ_Propuesta_ONs_'+cliente.replace(/[^a-zA-Z0-9]/g,'_')+'_'+today.replace(/\\//g,'-')+'.pdf',
+    filename:fname,
     image:{type:'jpeg',quality:0.98},
     html2canvas:{scale:2,useCORS:true,logging:false,width:760},
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
     pagebreak:{mode:['css'],before:'.pb',avoid:'.nb'}
-  }).from(container).save().then(()=>{container.style.display='none';container.style.width='';});
+  }).from(container).save().then(function(){
+    container.style.display='none';
+    container.style.width='';
+  }).catch(function(err){
+    console.error('PDF error:',err);
+    container.style.display='none';
+    container.style.width='';
+    alert('Error al generar el PDF. Intenta de nuevo.');
+  });
 }
 
 function fmt(n){
