@@ -1657,75 +1657,68 @@ function downloadPDF(){
   p1+=compRows;
   p1+='</table>';
 
-  // === CALENDARIO DE COBROS (12 meses) ===
+  // === CALENDARIO DE COBROS (12 meses) — Estilo tarjetas ===
   var calMeses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var nowCal=new Date();
   var cY=nowCal.getFullYear();
   var cM=nowCal.getMonth();
   var calData=[];
-  var calMax=0;
   for(var ci=0;ci<12;ci++){
     var mm=(cM+ci)%12;
     var yy=cY+Math.floor((cM+ci)/12);
-    var slot={label:calMeses[mm]+' '+yy,cup:0,amort:0,tickers:[]};
+    var slot={mes:calMeses[mm],ano:yy,cup:0,amort:0,pagos:[]};
     items.forEach(function(it){
       var cf=CF_DATA[it.ticker];if(!cf) return;
       cf.forEach(function(p){
         var pY=parseInt(p.d.slice(0,4));var pM=parseInt(p.d.slice(5,7))-1;
         if(pY===yy&&pM===mm){
           var c=it.nominal*p.i;var a=it.nominal*p.a;
-          if(c>0||a>0){slot.cup+=c;slot.amort+=a;slot.tickers.push(it.ticker);}
+          if(c>0||a>0) slot.pagos.push({tk:it.ticker,cup:c,amort:a,dia:p.d.slice(8,10)});
+          slot.cup+=c;slot.amort+=a;
         }
       });
     });
-    var tot=slot.cup+slot.amort;
-    if(tot>calMax) calMax=tot;
     calData.push(slot);
   }
 
-  p1+='<div style="margin-top:10px;font-size:9px;font-weight:700;color:#0043aa;margin-bottom:4px">Calendario de cobros — Proximos 12 meses</div>';
-  p1+='<table style="width:100%;border-collapse:collapse;font-size:7px">';
-  // Header row
-  p1+='<tr>';
-  calData.forEach(function(s){
-    var hasPay=(s.cup+s.amort)>0;
-    p1+='<td style="text-align:center;padding:2px 1px;font-weight:700;font-size:6px;color:'+(hasPay?'#0043aa':'#ccc')+'">'+s.label.split(' ')[0]+'</td>';
-  });
-  p1+='</tr>';
-  // Bars row
-  p1+='<tr>';
-  calData.forEach(function(s){
-    var tot=s.cup+s.amort;
-    var h=calMax>0?Math.max(2,Math.round(tot/calMax*35)):0;
-    var cupH=tot>0?Math.round(s.cup/tot*h):0;
-    var amortH=h-cupH;
-    if(tot>0){
-      p1+='<td style="vertical-align:bottom;text-align:center;padding:0 1px;height:40px">';
-      p1+='<div style="display:inline-block;width:80%">';
-      if(amortH>0) p1+='<div style="height:'+amortH+'px;background:#0043aa;border-radius:2px 2px 0 0"></div>';
-      if(cupH>0) p1+='<div style="height:'+cupH+'px;background:#61b0bc;border-radius:'+(amortH>0?'0':'2px 2px')+' 0 0"></div>';
-      p1+='</div></td>';
-    } else {
-      p1+='<td style="vertical-align:bottom;text-align:center;padding:0 1px;height:40px"><div style="height:2px;background:#eee;width:80%;display:inline-block;border-radius:1px"></div></td>';
+  p1+='<div style="margin-top:10px;font-size:9px;font-weight:700;color:#0043aa;margin-bottom:5px">Calendario de cobros — Proximos 12 meses</div>';
+  p1+='<table style="width:100%;border-collapse:separate;border-spacing:4px;font-size:7px">';
+  // 3 filas de 4 meses
+  for(var row=0;row<3;row++){
+    p1+='<tr>';
+    for(var col=0;col<4;col++){
+      var s=calData[row*4+col];
+      var tot=s.cup+s.amort;
+      var hasPay=tot>0;
+      var hasAmort=s.amort>0;
+      // Card
+      var bg=hasPay?'#f8fafc':'#fcfcfc';
+      var borderColor=hasAmort?'#0043aa':hasPay?'#61b0bc':'#eee';
+      p1+='<td style="width:25%;vertical-align:top;background:'+bg+';border:1px solid '+borderColor+';border-radius:4px;padding:0;overflow:hidden">';
+      // Header
+      var hdrBg=hasAmort?'#0043aa':hasPay?'#61b0bc':'#f0f2f5';
+      var hdrColor=hasPay?'#fff':'#bbb';
+      p1+='<div style="background:'+hdrBg+';padding:3px 5px;font-weight:700;font-size:6.5px;color:'+hdrColor+'">'+s.mes+' '+s.ano+'</div>';
+      if(hasPay){
+        // Total
+        p1+='<div style="padding:3px 5px 1px;font-weight:800;font-size:8px;color:#1e293b">USD '+fmt(tot)+'</div>';
+        // Detail
+        p1+='<div style="padding:1px 5px 3px;font-size:5.5px;color:#666;line-height:1.4">';
+        s.pagos.forEach(function(pg){
+          var parts=[];
+          if(pg.cup>0) parts.push('<span style="color:#61b0bc">C:'+fmt(pg.cup)+'</span>');
+          if(pg.amort>0) parts.push('<span style="color:#0043aa;font-weight:700">A:'+fmt(pg.amort)+'</span>');
+          p1+='<div>'+pg.dia+'/'+s.mes+' <b>'+pg.tk+'</b> '+parts.join(' ')+'</div>';
+        });
+        p1+='</div>';
+      } else {
+        p1+='<div style="padding:6px 5px;text-align:center;color:#ccc;font-size:6px">Sin cobros</div>';
+      }
+      p1+='</td>';
     }
-  });
-  p1+='</tr>';
-  // Amount row
-  p1+='<tr>';
-  calData.forEach(function(s){
-    var tot=s.cup+s.amort;
-    p1+='<td style="text-align:center;padding:1px;font-size:6px;font-weight:'+(tot>0?'700':'400')+';color:'+(tot>0?'#1e293b':'#ccc')+'">'+(tot>0?'$'+fmt(tot):'—')+'</td>';
-  });
-  p1+='</tr>';
-  // Tickers row
-  p1+='<tr>';
-  calData.forEach(function(s){
-    var tks=[...new Set(s.tickers)];
-    p1+='<td style="text-align:center;padding:1px;font-size:5px;color:#94a3b8;line-height:1.2">'+tks.join('<br>')+'</td>';
-  });
-  p1+='</tr>';
+    p1+='</tr>';
+  }
   p1+='</table>';
-  p1+='<div style="font-size:5.5px;color:#b0b0b0;margin-top:2px"><span style="display:inline-block;width:6px;height:4px;background:#61b0bc;border-radius:1px;margin-right:2px"></span>Cupon <span style="display:inline-block;width:6px;height:4px;background:#0043aa;border-radius:1px;margin-left:6px;margin-right:2px"></span>Amortizacion</div>';
 
   p1+='</div>';
 
