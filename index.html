@@ -423,6 +423,55 @@ tbody tr.rec-row .badge-iq { background: rgba(180,189,0,.15); color: #8a9000; }
       <div class="fg"><label>Tipo</label><select id="fTipo"><option value="">Todos</option><option value="ON">ON</option><option value="Bopreal">Bopreal</option><option value="Bono Soberano">Bono Soberano</option><option value="Bono Provincial">Bono Provincial</option></select></div>
       <button class="btn-clear" onclick="clearFilters()">Limpiar filtros</button>
       <button class="btn-clear" onclick="resetPrecios()" title="Volver a los precios originales del sistema">↺ Reset precios</button>
+      <button class="btn-clear" onclick="abrirPegarPrecios()" style="border-color:var(--iq-blue);color:var(--iq-blue)">📋 Pegar precios</button>
+      <button class="btn-clear" onclick="abrirSheetConfig()" style="border-color:var(--iq-green);color:var(--iq-green)">📊 Google Sheet</button>
+      <span id="sheet-status" style="font-size:10px;color:var(--text3);align-self:flex-end;padding-bottom:8px"></span>
+    </div>
+
+    <!-- Modal pegar precios -->
+    <div id="modal-precios" onclick="if(event.target===this)cerrarPegarPrecios()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center">
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-lg)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font:700 16px var(--font)">Pegar precios desde Balanz</div>
+          <button onclick="cerrarPegarPrecios()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5">
+          Selecciona los precios en la pagina de Balanz (con el mouse), copia con <b>Ctrl+C</b> y pega aca con <b>Ctrl+V</b>. El sistema detecta automaticamente los tickers y precios.<br>
+          <span style="color:var(--text3)">Formato libre: puede ser una tabla, una lista, o cualquier texto que contenga los tickers y precios.</span>
+        </div>
+        <textarea id="txt-precios" placeholder="Pegar aca el texto copiado de Balanz..." style="width:100%;height:180px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font:400 12px var(--mono);color:var(--text);resize:vertical;outline:none"></textarea>
+        <div id="preview-precios" style="margin-top:10px;font-size:11px;color:var(--text2);max-height:150px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+          <button onclick="cerrarPegarPrecios()" style="background:none;border:1px solid var(--border);color:var(--text2);padding:8px 18px;border-radius:var(--radius-sm);font:600 12px var(--font);cursor:pointer">Cancelar</button>
+          <button id="btn-aplicar-precios" onclick="aplicarPrecios()" disabled style="background:var(--iq-blue);color:#fff;border:none;padding:8px 24px;border-radius:var(--radius-sm);font:700 12px var(--font);cursor:pointer">Aplicar precios</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal Google Sheet -->
+    <div id="modal-sheet" onclick="if(event.target===this)cerrarSheetConfig()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center">
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:24px;max-width:620px;width:90%;box-shadow:var(--shadow-lg)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font:700 16px var(--font)">Conectar Google Sheet</div>
+          <button onclick="cerrarSheetConfig()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+          <b>Paso 1:</b> Abri <a href="https://sheets.google.com" target="_blank" style="color:var(--iq-blue)">Google Sheets</a> y crea una planilla nueva.<br>
+          <b>Paso 2:</b> Pone 3 columnas: <b>TICKER</b> (col A), <b>EMISOR</b> (col B), <b>PRECIO</b> (col C). Copia los tickers de la plantilla que te doy abajo.<br>
+          <b>Paso 3:</b> Anda a <b>Archivo → Compartir → Publicar en la web</b> → elegi <b>CSV</b> → click en <b>Publicar</b>.<br>
+          <b>Paso 4:</b> Copia la URL que te da y pegala aca abajo.<br>
+          <span style="color:var(--text3)">Despues solo actualizas los precios en la Google Sheet y la calculadora los lee automaticamente.</span>
+        </div>
+        <div class="fg" style="margin-bottom:12px">
+          <label>URL de Google Sheet publicada como CSV</label>
+          <input type="text" id="inp-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font:400 12px var(--mono);color:var(--text);outline:none;width:100%">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="guardarSheetUrl()" style="background:var(--iq-blue);color:#fff;border:none;padding:8px 20px;border-radius:var(--radius-sm);font:700 12px var(--font);cursor:pointer">Guardar y cargar precios</button>
+          <button onclick="cargarDesdeSheet()" style="background:none;border:1px solid var(--iq-blue);color:var(--iq-blue);padding:8px 16px;border-radius:var(--radius-sm);font:600 12px var(--font);cursor:pointer">Actualizar ahora</button>
+          <button onclick="desconectarSheet()" style="background:none;border:1px solid var(--border);color:var(--text3);padding:8px 16px;border-radius:var(--radius-sm);font:600 12px var(--font);cursor:pointer">Desconectar</button>
+        </div>
+        <div id="sheet-result" style="margin-top:10px;font-size:11px;color:var(--text2)"></div>
+      </div>
     </div>
     <!-- Scatter TIR vs Duration -->
     <div class="card" style="margin-bottom:18px" id="scatter-card">
@@ -640,6 +689,176 @@ let pieChart=null;
 let scatterChart=null;
 const COLORS=['#0043aa','#61b0bc','#8a9e00','#3366bb','#7dc8d4','#b4bd00','#1a5cc8','#94d2db','#6d8400','#4d80d0','#a8dce3','#d4dc4a'];
 
+// Parser de precios pegados
+function abrirPegarPrecios(){
+  document.getElementById('modal-precios').style.display='flex';
+  document.getElementById('txt-precios').value='';
+  document.getElementById('preview-precios').innerHTML='';
+  document.getElementById('btn-aplicar-precios').disabled=true;
+  document.getElementById('txt-precios').focus();
+  document.getElementById('txt-precios').oninput=function(){parsearPrecios();};
+}
+function cerrarPegarPrecios(){
+  document.getElementById('modal-precios').style.display='none';
+}
+
+var preciosParsed=[];
+function parsearPrecios(){
+  var txt=document.getElementById('txt-precios').value;
+  preciosParsed=[];
+  if(!txt.trim()){
+    document.getElementById('preview-precios').innerHTML='';
+    document.getElementById('btn-aplicar-precios').disabled=true;
+    return;
+  }
+  // Tickers conocidos
+  var tickers=ONS_DATA.map(function(o){return o.ticker;});
+  // Normalizar texto: reemplazar tabs, comas decimales
+  var lines=txt.split(/[\n\r]+/);
+  lines.forEach(function(line){
+    // Buscar cada ticker en la línea
+    tickers.forEach(function(tk){
+      if(line.indexOf(tk)===-1) return;
+      // Extraer todos los números de la línea
+      var nums=line.match(/\d+[\.,]\d+|\d+/g);
+      if(!nums) return;
+      // Buscar el número que parece un precio (entre 20 y 200 típicamente)
+      var precio=null;
+      for(var i=0;i<nums.length;i++){
+        var n=parseFloat(nums[i].replace(',','.'));
+        if(n>=10&&n<=250){
+          precio=n;
+          break;
+        }
+      }
+      if(precio!==null){
+        // Evitar duplicados
+        if(!preciosParsed.some(function(p){return p.ticker===tk;})){
+          var on=ONS_DATA.find(function(o){return o.ticker===tk;});
+          preciosParsed.push({ticker:tk,precio:precio,precioAnterior:on?on.precio:null});
+        }
+      }
+    });
+  });
+  // Preview
+  var preview=document.getElementById('preview-precios');
+  if(preciosParsed.length===0){
+    preview.innerHTML='<span style="color:var(--iq-red)">No se detectaron tickers conocidos. Verifica el texto pegado.</span>';
+    document.getElementById('btn-aplicar-precios').disabled=true;
+    return;
+  }
+  var html='<div style="font-weight:600;margin-bottom:4px;color:var(--iq-blue)">'+preciosParsed.length+' precios detectados:</div>';
+  html+='<table style="width:100%;font-size:10.5px;border-collapse:collapse">';
+  html+='<tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:2px 6px;color:var(--text3)">Ticker</th><th style="text-align:right;padding:2px 6px;color:var(--text3)">Anterior</th><th style="text-align:right;padding:2px 6px;color:var(--text3)">Nuevo</th><th style="text-align:right;padding:2px 6px;color:var(--text3)">Cambio</th></tr>';
+  preciosParsed.forEach(function(p){
+    var cambio=p.precioAnterior?((p.precio-p.precioAnterior)/p.precioAnterior*100).toFixed(2):'--';
+    var color=cambio>0?'var(--iq-green)':cambio<0?'var(--iq-red)':'var(--text3)';
+    html+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:2px 6px;font-weight:600;font-family:var(--mono)">'+p.ticker+'</td><td style="padding:2px 6px;text-align:right;font-family:var(--mono)">'+(p.precioAnterior?p.precioAnterior.toFixed(2):'--')+'</td><td style="padding:2px 6px;text-align:right;font-family:var(--mono);font-weight:600">'+p.precio.toFixed(2)+'</td><td style="padding:2px 6px;text-align:right;font-family:var(--mono);color:'+color+'">'+(cambio!=='--'?(cambio>0?'+':'')+cambio+'%':'--')+'</td></tr>';
+  });
+  html+='</table>';
+  preview.innerHTML=html;
+  document.getElementById('btn-aplicar-precios').disabled=false;
+}
+
+function aplicarPrecios(){
+  preciosParsed.forEach(function(p){
+    var on=ONS_DATA.find(function(o){return o.ticker===p.ticker;});
+    if(on){
+      on.precio=p.precio;
+      on.tir=calcTIR(p.ticker,p.precio);
+    }
+  });
+  guardarPrecios();
+  renderCatalog();
+  renderProposal();
+  cerrarPegarPrecios();
+  alert(preciosParsed.length+' precios actualizados correctamente.');
+}
+
+// Google Sheet integration
+function abrirSheetConfig(){
+  document.getElementById('modal-sheet').style.display='flex';
+  var url='';
+  try{url=localStorage.getItem('iq_sheet_url')||'';}catch(e){}
+  document.getElementById('inp-sheet-url').value=url;
+  document.getElementById('sheet-result').innerHTML='';
+}
+function cerrarSheetConfig(){
+  document.getElementById('modal-sheet').style.display='none';
+}
+function guardarSheetUrl(){
+  var url=document.getElementById('inp-sheet-url').value.trim();
+  if(!url){alert('Pega la URL de la Google Sheet publicada.');return;}
+  // Asegurar que termina en output=csv
+  if(url.indexOf('output=csv')===-1){
+    if(url.indexOf('/pub')>-1){
+      url+=(url.indexOf('?')>-1?'&':'?')+'output=csv';
+    }
+  }
+  try{localStorage.setItem('iq_sheet_url',url);}catch(e){}
+  document.getElementById('inp-sheet-url').value=url;
+  cargarDesdeSheet();
+}
+function desconectarSheet(){
+  try{localStorage.removeItem('iq_sheet_url');}catch(e){}
+  document.getElementById('inp-sheet-url').value='';
+  document.getElementById('sheet-result').innerHTML='<span style="color:var(--text3)">Google Sheet desconectada.</span>';
+  document.getElementById('sheet-status').textContent='';
+}
+function cargarDesdeSheet(){
+  var url='';
+  try{url=localStorage.getItem('iq_sheet_url')||'';}catch(e){}
+  if(!url){return;}
+  var result=document.getElementById('sheet-result');
+  var status=document.getElementById('sheet-status');
+  if(result) result.innerHTML='<span style="color:var(--iq-blue)">Cargando precios...</span>';
+  if(status) status.textContent='Cargando...';
+
+  fetch(url).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(function(csv){
+    var lines=csv.split(/[\n\r]+/);
+    var updated=0;
+    var tickers=ONS_DATA.map(function(o){return o.ticker;});
+    lines.forEach(function(line){
+      if(!line.trim()) return;
+      var cols=line.split(',');
+      if(cols.length<3) return;
+      var tk=cols[0].trim().toUpperCase();
+      var precioRaw=cols[2].trim().replace(',','.');
+      var precio=parseFloat(precioRaw);
+      if(isNaN(precio)||precio<=0) return;
+      // Si el precio es menor a 3, probablemente está en formato por-unidad (ej: 1.1085)
+      if(precio>0&&precio<3) precio=precio*100;
+      var idx=tickers.indexOf(tk);
+      if(idx===-1){
+        // Intentar mapeo D→O (Balanz usa D al final para USD)
+        var tkO=tk.slice(0,-1)+'O';
+        idx=tickers.indexOf(tkO);
+        if(idx===-1) return;
+        tk=tkO;
+      }
+      var on=ONS_DATA.find(function(o){return o.ticker===tk;});
+      if(on&&Math.abs(on.precio-precio)>0.001){
+        on.precio=Math.round(precio*100)/100;
+        on.tir=calcTIR(tk,on.precio);
+        updated++;
+      }
+    });
+    guardarPrecios();
+    renderCatalog();
+    renderProposal();
+    var ts=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    if(result) result.innerHTML='<span style="color:var(--iq-green)">'+updated+' precios actualizados ('+ts+')</span>';
+    if(status) status.textContent='Sheet: '+updated+' precios ('+ts+')';
+  }).catch(function(err){
+    console.error('Sheet error:',err);
+    if(result) result.innerHTML='<span style="color:var(--iq-red)">Error al cargar: '+err.message+'. Verifica que la URL sea correcta y este publicada.</span>';
+    if(status) status.textContent='Error al cargar Sheet';
+  });
+}
+
 // Persistencia de precios en localStorage
 function guardarPrecios(){
   var custom={};
@@ -666,6 +885,7 @@ function resetPrecios(){
 
 document.addEventListener('DOMContentLoaded',()=>{
   cargarPrecios();
+  cargarDesdeSheet();
   buildSectorFilter();
   buildTableHeader();
   // Pre-load recommended ONs
@@ -1435,7 +1655,79 @@ function downloadPDF(){
   p1+='<div style="font-size:10px;font-weight:700;margin-bottom:5px">Composicion de cartera</div>';
   p1+='<table style="width:100%;border-collapse:collapse;font-size:8.5px"><tr style="background:#e8ecf4"><th style="padding:4px;text-align:left;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Ticker</th><th style="padding:4px;text-align:left;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Emisor</th><th style="padding:4px;text-align:left;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Sector</th><th style="padding:4px;text-align:right;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">TIR</th><th style="padding:4px;text-align:right;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Dur.</th><th style="padding:4px;text-align:right;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Nom.</th><th style="padding:4px;text-align:right;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Importe</th><th style="padding:4px;text-align:right;font-size:7px;text-transform:uppercase;border-bottom:2px solid #0043aa">Alloc.</th></tr>';
   p1+=compRows;
-  p1+='</table></div>';
+  p1+='</table>';
+
+  // === CALENDARIO DE COBROS (12 meses) ===
+  var calMeses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var nowCal=new Date();
+  var cY=nowCal.getFullYear();
+  var cM=nowCal.getMonth();
+  var calData=[];
+  var calMax=0;
+  for(var ci=0;ci<12;ci++){
+    var mm=(cM+ci)%12;
+    var yy=cY+Math.floor((cM+ci)/12);
+    var slot={label:calMeses[mm]+' '+yy,cup:0,amort:0,tickers:[]};
+    items.forEach(function(it){
+      var cf=CF_DATA[it.ticker];if(!cf) return;
+      cf.forEach(function(p){
+        var pY=parseInt(p.d.slice(0,4));var pM=parseInt(p.d.slice(5,7))-1;
+        if(pY===yy&&pM===mm){
+          var c=it.nominal*p.i;var a=it.nominal*p.a;
+          if(c>0||a>0){slot.cup+=c;slot.amort+=a;slot.tickers.push(it.ticker);}
+        }
+      });
+    });
+    var tot=slot.cup+slot.amort;
+    if(tot>calMax) calMax=tot;
+    calData.push(slot);
+  }
+
+  p1+='<div style="margin-top:10px;font-size:9px;font-weight:700;color:#0043aa;margin-bottom:4px">Calendario de cobros — Proximos 12 meses</div>';
+  p1+='<table style="width:100%;border-collapse:collapse;font-size:7px">';
+  // Header row
+  p1+='<tr>';
+  calData.forEach(function(s){
+    var hasPay=(s.cup+s.amort)>0;
+    p1+='<td style="text-align:center;padding:2px 1px;font-weight:700;font-size:6px;color:'+(hasPay?'#0043aa':'#ccc')+'">'+s.label.split(' ')[0]+'</td>';
+  });
+  p1+='</tr>';
+  // Bars row
+  p1+='<tr>';
+  calData.forEach(function(s){
+    var tot=s.cup+s.amort;
+    var h=calMax>0?Math.max(2,Math.round(tot/calMax*35)):0;
+    var cupH=tot>0?Math.round(s.cup/tot*h):0;
+    var amortH=h-cupH;
+    if(tot>0){
+      p1+='<td style="vertical-align:bottom;text-align:center;padding:0 1px;height:40px">';
+      p1+='<div style="display:inline-block;width:80%">';
+      if(amortH>0) p1+='<div style="height:'+amortH+'px;background:#0043aa;border-radius:2px 2px 0 0"></div>';
+      if(cupH>0) p1+='<div style="height:'+cupH+'px;background:#61b0bc;border-radius:'+(amortH>0?'0':'2px 2px')+' 0 0"></div>';
+      p1+='</div></td>';
+    } else {
+      p1+='<td style="vertical-align:bottom;text-align:center;padding:0 1px;height:40px"><div style="height:2px;background:#eee;width:80%;display:inline-block;border-radius:1px"></div></td>';
+    }
+  });
+  p1+='</tr>';
+  // Amount row
+  p1+='<tr>';
+  calData.forEach(function(s){
+    var tot=s.cup+s.amort;
+    p1+='<td style="text-align:center;padding:1px;font-size:6px;font-weight:'+(tot>0?'700':'400')+';color:'+(tot>0?'#1e293b':'#ccc')+'">'+(tot>0?'$'+fmt(tot):'—')+'</td>';
+  });
+  p1+='</tr>';
+  // Tickers row
+  p1+='<tr>';
+  calData.forEach(function(s){
+    var tks=[...new Set(s.tickers)];
+    p1+='<td style="text-align:center;padding:1px;font-size:5px;color:#94a3b8;line-height:1.2">'+tks.join('<br>')+'</td>';
+  });
+  p1+='</tr>';
+  p1+='</table>';
+  p1+='<div style="font-size:5.5px;color:#b0b0b0;margin-top:2px"><span style="display:inline-block;width:6px;height:4px;background:#61b0bc;border-radius:1px;margin-right:2px"></span>Cupon <span style="display:inline-block;width:6px;height:4px;background:#0043aa;border-radius:1px;margin-left:6px;margin-right:2px"></span>Amortizacion</div>';
+
+  p1+='</div>';
 
   // === PAGE 2: Cash flows ===
   var meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
