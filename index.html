@@ -1229,9 +1229,11 @@ function updateNominal(ticker,val,input){
 function updateAlloc(ticker,pctVal){
   var pct=parseFloat(pctVal);
   if(isNaN(pct)||pct<0) return;
+  if(pct>100) pct=100;
+  // Total a invertir: se toma del input y NO se modifica.
   var totalInv=parseFloat(document.getElementById('inp-inversion').value)||0;
   if(totalInv<=0){
-    // Si no hay inversión total, calcular desde los importes actuales
+    // Si no hay inversion total definida, usar la suma de importes actuales.
     totalInv=0;
     selected.forEach(function(s){
       var on=ONS_DATA.find(function(o){return o.ticker===s.ticker;});
@@ -1239,16 +1241,57 @@ function updateAlloc(ticker,pctVal){
     });
   }
   if(totalInv<=0) return;
-  var on=ONS_DATA.find(function(o){return o.ticker===ticker;});
-  if(!on) return;
+  var target=selected.find(function(s){return s.ticker===ticker;});
+  var onT=ONS_DATA.find(function(o){return o.ticker===ticker;});
+  if(!target||!onT) return;
+  var precioT=onT.precio/100;
+  if(precioT<=0) return;
+  // Importe objetivo para el ticker elegido = pct% del total.
   var targetImporte=totalInv*(pct/100);
-  var precio=on.precio/100;
-  if(precio<=0) return;
-  var nom=Math.round(targetImporte/precio);
-  var step=getNomStep(ticker);
-  nom=Math.max(step,Math.round(nom/step)*step);
-  var item=selected.find(function(s){return s.ticker===ticker;});
-  if(item) item.nominal=nom;
+  var stepT=getNomStep(ticker);
+  target.nominal=Math.max(stepT,Math.round((targetImporte/precioT)/stepT)*stepT);
+  // El resto del total se reparte entre los demas instrumentos,
+  // preservando sus proporciones actuales (asi el total NO cambia).
+  var others=selected.filter(function(s){return s.ticker!==ticker;});
+  if(others.length>0){
+    var restImporte=Math.max(0,totalInv-targetImporte);
+    var bases=[];var baseTotal=0;
+    others.forEach(function(s){
+      var on=ONS_DATA.find(function(o){return o.ticker===s.ticker;});
+      var imp=(on&&on.precio>0)?s.nominal*(on.precio/100):0;
+      baseTotal+=imp;
+      bases.push({s:s,on:on,imp:imp});
+    });
+    bases.forEach(function(b){
+      if(!b.on||b.on.precio<=0) return;
+      var w=baseTotal>0?(b.imp/baseTotal):(1/others.length);
+      var imp=restImporte*w;
+      var precio=b.on.precio/100;
+      var step=getNomStep(b.s.ticker);
+      b.s.nominal=Math.max(step,Math.round((imp/precio)/step)*step);
+    });
+    // Correccion del residuo por lamina minima: el sobrante/faltante se vuelca
+    // en el instrumento (distinto al elegido) con la lamina mas fina, para que
+    // el total se mantenga lo mas cerca posible del monto objetivo.
+    var suma=0;
+    selected.forEach(function(s2){
+      var o2=ONS_DATA.find(function(o){return o.ticker===s2.ticker;});
+      if(o2) suma+=s2.nominal*(o2.precio/100);
+    });
+    var gap=totalInv-suma;
+    var fino=null,minStep=Infinity;
+    bases.forEach(function(b){
+      if(!b.on||b.on.precio<=0) return;
+      var st=getNomStep(b.s.ticker);
+      if(st<minStep){minStep=st;fino=b;}
+    });
+    if(fino){
+      var pF=fino.on.precio/100;
+      var stF=getNomStep(fino.s.ticker);
+      var nuevo=fino.s.nominal+Math.round((gap/pF)/stF)*stF;
+      fino.s.nominal=Math.max(stF,nuevo);
+    }
+  }
   renderProposal();
 }
 function clearProposal(){
